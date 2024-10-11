@@ -1,0 +1,5 @@
+venv
+.env
+realtimesst.log
+**/__pycache__/**
+models/**

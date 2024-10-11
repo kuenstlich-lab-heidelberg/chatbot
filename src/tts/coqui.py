@@ -1,0 +1,34 @@
+import time
+from RealtimeTTS import TextToAudioStream, CoquiEngine
+
+from tts.base import BaseTTS
+
+
+class CoquiTTS(BaseTTS):
+    def __init__(self):
+        super().__init__()
+        self.engine = CoquiEngine(
+            language="de",
+            speed=1.2,
+            full_sentences=True)
+        
+        self.stream = TextToAudioStream(
+            self.engine, 
+            language="de", 
+            tokenizer="stanza")
+
+
+    def speak(self, text):
+        print("CoquiTTS: "+text)
+        self.stream.feed(text)
+        time.sleep(1.0)
+        self.stream.play_async()
+        while self.stream.is_playing():
+            time.sleep(0.1)
+
+
+    def stop(self):
+        print("CoquiTTS: stop")
+        self.stream.stop()
+  
+
