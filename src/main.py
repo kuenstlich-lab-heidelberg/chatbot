@@ -8,14 +8,27 @@ from tts.pytts import PyTTS
 from personas.greek import PERSONA as greek
 from personas.lilly import PERSONA as lilly
 from personas.mannheimer import PERSONA as mannheimer
+import torch
 
 from dotenv import load_dotenv
 load_dotenv() 
 
 
 if __name__ == '__main__':
+    # Check that MPS is available
+    if not torch.backends.mps.is_available():
+        if not torch.backends.mps.is_built():
+            print("MPS not available because the current PyTorch install was not "
+                "built with MPS enabled.")
+        else:
+            print("MPS not available because the current MacOS version is not 12.3+ "
+                "and/or you do not have an MPS-enabled device on this machine.")
+    else:
+        print("MPS support for pytorch is available")
+
+
     #llm = JanLLM()
-    llm = OpenAILLM(mannheimer)
+    llm = OpenAILLM(greek)
 
     tts = OpenAiTTS()
     #tts = CoquiTTS()
