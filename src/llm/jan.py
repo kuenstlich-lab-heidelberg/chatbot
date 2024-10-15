@@ -11,7 +11,7 @@ class JanLLM(BaseLLM):
     def __init__(self, persona):
         super().__init__()
         self.model = "llama3.2-3b-instruct"
-        self.model = "llama3.2-1b-instruct"
+        #self.model = "llama3.2-1b-instruct"
         self.url = "http://localhost:1337/v1/chat/completions"
         self.history = [
             {
