@@ -1,18 +1,18 @@
-from stt.base_stt import BaseSTT
+from stt.base import BaseSTT
 from RealtimeSTT import AudioToTextRecorder
 
 
-class LargeSTT(BaseSTT):
-    def __init__(self, speech_started=None):
+class WhisperLocal(BaseSTT):
+    def __init__(self, on_speech_start=None):
         super().__init__()
-        if speech_started is None:
-            speech_started = lambda: None  # Leere Lambda-Funktion
+        if on_speech_start is None:
+            on_speech_start = lambda: None  # Leere Lambda-Funktion
 
         self.recorder = AudioToTextRecorder( 
             language="de",
             model="medium", 
             print_transcription_time=True)
-        self.recorder.on_recording_start = speech_started
+        self.recorder.on_recording_start = on_speech_start
 
 
     def start_recording(self):

@@ -1,20 +1,20 @@
-from dotenv import load_dotenv
-load_dotenv() 
-import pygame
-
-from transformers import AutoProcessor, BarkModel
-
-processor = AutoProcessor.from_pretrained("suno/bark")
-model = BarkModel.from_pretrained("suno/bark")
-
-voice_preset = "v2/en_speaker_6"
-
-inputs = processor("Hello, my dog is cute", voice_preset=voice_preset)
-
-audio_array = model.generate(**inputs)
-audio_array = audio_array.cpu().numpy().squeeze()
-
+from bark import SAMPLE_RATE, generate_audio, preload_models
+from scipy.io.wavfile import write as write_wav
 from IPython.display import Audio
 
-sample_rate = model.generation_config.sample_rate
-Audio(audio_array, rate=sample_rate)
+# download and load all models
+preload_models()
+
+# generate audio from text
+text_prompt = """
+     Hello, my name is Suno. And, uh — and I like pizza. [laughs] 
+     But I also have other interests such as playing tic tac toe.
+"""
+print("start")
+audio_array = generate_audio(text_prompt)
+print("end")
+# save audio to disk
+write_wav("bark_generation.wav", SAMPLE_RATE, audio_array)
+  
+# play text in notebook
+Audio(audio_array, rate=SAMPLE_RATE)
