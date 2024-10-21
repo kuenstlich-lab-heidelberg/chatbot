@@ -23,9 +23,10 @@ if __name__ == '__main__':
 
 
     def on_transition_fired(trigger_name, metadata):
-        print(f"Transition triggered: {trigger_name}")
-        print(f"Adjust System prompt: {metadata.get('system_prompt', 'No system prompt')}")
-        #llm.system(metadata.get('system_prompt'))
+        #print(f"Transition triggered: {trigger_name}")
+        #print(f"Adjust System prompt: {metadata.get('system_prompt', 'No system prompt')}")
+        llm.system(metadata.get('system_prompt'))
+        #pass
 
 
     persona = Persona("default.json", on_transition_fired)
@@ -36,8 +37,11 @@ if __name__ == '__main__':
         if(len(text)>0):
             tts.stop()
             response = llm.chat(text, allowed_expressions=allowed_expressions)
-            print(json.dumps(response, indent=4))
             tts.speak(response["text"])
+            if "trigger" in response:
+                persona.trigger(response["trigger"])
+            response["state"] = persona.get_state()
+            print(json.dumps(response, indent=4))
 
     #llm = JanLLM()
     llm = OpenAILLM(persona)

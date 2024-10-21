@@ -52,7 +52,6 @@ class OpenAILLM(BaseLLM):
     def trim_history(self):
         # Sicherstellen, dass der Verlauf das Token-Limit nicht überschreitet
         token_count_before = self.count_tokens(self.history)
-        print(token_count_before)
         while self.count_tokens(self.history) > self.token_limit:
             # Entferne die älteste Nachricht, aber behalte die Systemnachricht
             if len(self.history) > 1:
@@ -78,7 +77,7 @@ class OpenAILLM(BaseLLM):
 
         # Anweisung, nur die erlaubten Ausdrücke zu verwenden
         allowed_expressions_str = ', '.join(f'"{expr}"' for expr in allowed_expressions)
-        system_instruction = f"Please generate text with appropriate emotions or gestures, but only use the following expressions: {allowed_expressions_str}."
+        system_instruction = f"Please generate text with multiple appropriate emotions or gestures, but only use the following expressions: {allowed_expressions_str}. Ensure there are multiple expressions that are aligned with the flow of the conversation."
         self.history.append({"role": "system", "content": system_instruction})
 
         # Anweisung zur Auswahl einer Stimmungsänderung
@@ -90,11 +89,11 @@ class OpenAILLM(BaseLLM):
         # Trim Verlauf, um innerhalb des Token-Limits zu bleiben
         self.trim_history()
 
-        # Funktiondefinitionen erstellen
+        # Combined Function Definition for text, expressions, and mood trigger
         functions = [
             {
-                "name": "generate_text_with_expressions",
-                "description": "Generates text with appropriate emotions and gestures.",
+                "name": "generate_text_with_expressions_and_mood",
+                "description": "Generates text with multiple appropriate emotions and gestures, and optionally triggers a mood transition.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -109,7 +108,7 @@ class OpenAILLM(BaseLLM):
                                 "properties": {
                                     "expression": {
                                         "type": "string",
-                                        "description": "Emotion or gesture to be performed."
+                                        "description": "Emotion or gesture to be performed. Ensure multiple expressions are used."
                                     },
                                     "start_time": {
                                         "type": "number",
@@ -118,27 +117,13 @@ class OpenAILLM(BaseLLM):
                                 },
                                 "required": ["expression", "start_time"]
                             }
-                        }
-                    },
-                    "required": ["text", "expressions"]
-                }
-            },
-            {
-                "name": "handle_mood_transition",
-                "description": "Handles mood transitions based on the available triggers. Use this function when a mood change is appropriate based on the conversation's emotional tone.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "text": {
-                            "type": "string",
-                            "description": "The text to be spoken."
                         },
                         "mood_trigger": {
                             "type": "string",
                             "description": "The trigger to switch the mood, chosen from the allowed triggers."
                         }
                     },
-                    "required": ["text", "mood_trigger"]
+                    "required": ["text"]
                 }
             }
         ]
@@ -158,6 +143,7 @@ class OpenAILLM(BaseLLM):
 
             text = ""
             expressions = []
+            trigger = None
 
             # Process the LLM response
             if response and len(response.choices) > 0:
@@ -170,28 +156,23 @@ class OpenAILLM(BaseLLM):
                     function_name = function_call.name
                     function_args = function_call.arguments
 
-                    # Handle text and expression generation
-                    if function_name == "generate_text_with_expressions":
+                    # Handle text, expressions, and mood trigger together
+                    if function_name == "generate_text_with_expressions_and_mood":
                         try:
                             args = json.loads(function_args)
                             text = args.get("text", "")
                             expressions = args.get("expressions", [])
+                            
+                            # Ensure there are multiple expressions
+                            if len(expressions) <= 1:
+                                print("Warning: Only one or no expression provided. Ensure multiple expressions.")
+                            
+                            trigger = args.get("mood_trigger")
+                            if trigger not in possible_mood_triggers:
+                                trigger = None
                         except json.JSONDecodeError:
-                            print("Error parsing function arguments for expressions.")
-                    
-                    # Handle mood transition
-                    elif function_name == "handle_mood_transition":
-                        try:
-                            args = json.loads(function_args)
-                            text = args.get("text", "")
-                            mood_trigger = args.get("mood_trigger")
-                            if mood_trigger in possible_mood_triggers:
-                                self.persona.trigger(mood_trigger)  # Löst die Stimmungsänderung aus
-                                #print(f"Triggered mood transition: {mood_trigger}")
-                                #print(f"New mood: {self.persona.get_state()}")
-                        except json.JSONDecodeError:
-                            print("Error parsing mood transition arguments.")
-
+                            print("Error parsing function arguments.")
+                
                 # Falls keine function_call vorhanden ist
                 elif message and message.content:
                     text = message.content  # Direkte Antwort vom Assistenten ohne Funktionsaufruf
@@ -205,4 +186,4 @@ class OpenAILLM(BaseLLM):
             print(f"Error: {e}")
             text = "I'm sorry, there was an issue processing your request."
 
-        return {"text": text, "expressions": expressions}
+        return {"text": text, "expressions": expressions, "trigger": trigger}
