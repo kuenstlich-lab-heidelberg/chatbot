@@ -70,7 +70,7 @@ class JanLLM(BaseLLM):
         return response.json()
 
 
-    def chat(self, user_input):
+    def chat(self, user_input, allowed_expressions):
         # Add user input to history
         self.history.append({"role": "user", "content": user_input})
 
@@ -88,4 +88,5 @@ class JanLLM(BaseLLM):
         self.history.append({"role": "assistant", "content": content})
 
         # Return the response content
-        return content
+        return {"text": content, "expressions": []}
+

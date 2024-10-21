@@ -8,7 +8,7 @@ class WebrtcVad(BaseVad):
         self.audio_interface = pyaudio.PyAudio()
         self.stream = None
 
-        self.vad = webrtcvad.Vad(2)
+        self.vad = webrtcvad.Vad(3)
         self.sample_rate = 16000
         self.format = pyaudio.paInt16
         self.frame_duration_ms = 30

@@ -1,5 +1,8 @@
+import json
+
 from stt.whisper_local import WhisperLocal
 from stt.whisper_openai import WhisperOpenAi
+from stt.cli_text import CLIText
 
 from llm.jan import JanLLM
 from llm.openai import OpenAILLM
@@ -7,40 +10,46 @@ from llm.openai import OpenAILLM
 from tts.openai import OpenAiTTS
 from tts.coqui import CoquiTTS
 from tts.pytts import PyTTS
+from tts.console import Console
 
-from personas.greek import PERSONA as greek
-from personas.lilly import PERSONA as lilly
-from personas.mannheimer import PERSONA as mannheimer
-import torch
+from personas.state_engine import Persona
 
 from dotenv import load_dotenv
 load_dotenv() 
 
 
 if __name__ == '__main__':
+    allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
 
-    def stop_speak():
-        tts.stop()
+
+    def on_transition_fired(trigger_name, metadata):
+        print(f"Transition triggered: {trigger_name}")
+        print(f"Adjust System prompt: {metadata.get('system_prompt', 'No system prompt')}")
+        #llm.system(metadata.get('system_prompt'))
+
+
+    persona = Persona("default.json", on_transition_fired)
 
     def process_text(text):
         print("")
         print(text)
-        tts.stop()
-        response = llm.chat(text)
-        tts.speak(response)
-
-
+        if(len(text)>0):
+            tts.stop()
+            response = llm.chat(text, allowed_expressions=allowed_expressions)
+            print(json.dumps(response, indent=4))
+            tts.speak(response["text"])
 
     #llm = JanLLM()
-    llm = OpenAILLM(greek)
+    llm = OpenAILLM(persona)
 
-    tts = OpenAiTTS()
+    #tts = OpenAiTTS()
     #tts = CoquiTTS()
     #tts = PyTTS()
+    tts = Console()
 
-    #stt = WhisperLocal(on_speech_start=stop_speak)
-    stt = WhisperOpenAi(on_speech_start=stop_speak)
-
+    #stt = WhisperLocal()
+    stt = WhisperOpenAi()
+    stt = CLIText()
 
     # Start recording
     # Use the generator to get transcribed text

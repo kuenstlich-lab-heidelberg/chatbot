@@ -8,7 +8,7 @@ import io
 from stt.base import BaseSTT
 from vad.webrtc import WebrtcVad
 
-_false_positiv = ["Amara.org", "Untertitel "]
+_false_positiv = ["Amara.org", "Untertitel ", "Pff"]
 
 class WhisperOpenAi(BaseSTT):
     def __init__(self, on_speech_start=None):
