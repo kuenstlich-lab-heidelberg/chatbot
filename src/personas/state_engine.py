@@ -35,12 +35,11 @@ class Persona:
 
     def _prepare_transitions(self, transitions):
         clean_transitions = []
+        # Cleanup "metadata" attribute because "transitions" lib can't handle it.
+        #
         for transition in transitions:
-            # Check if the transition contains metadata
             if 'metadata' in transition:
-                # Cache the metadata using the trigger as the key
                 self.transition_metadata[transition['trigger']] = transition['metadata']
-                # Remove metadata from the transition
                 transition = {key: value for key, value in transition.items() if key != 'metadata'}
             
             clean_transitions.append(transition)

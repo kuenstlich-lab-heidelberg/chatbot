@@ -39,7 +39,7 @@ class OpenAILLM(BaseLLM):
         self.presence_penalty = 0
         self.temperature = 0.2
         self.top_p = 0.95
-        self.token_limit = 4000  # Token-Limit für den Kontext, einschließlich der Systemaufforderung
+        self.token_limit = 4000 
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.client = OpenAI(api_key=self.api_key)
@@ -50,10 +50,8 @@ class OpenAILLM(BaseLLM):
 
 
     def trim_history(self):
-        # Sicherstellen, dass der Verlauf das Token-Limit nicht überschreitet
         token_count_before = self.count_tokens(self.history)
         while self.count_tokens(self.history) > self.token_limit:
-            # Entferne die älteste Nachricht, aber behalte die Systemnachricht
             if len(self.history) > 1:
                 self.history.pop(1)
             else:
@@ -64,15 +62,10 @@ class OpenAILLM(BaseLLM):
 
 
     def system(self, system_instruction):
-        """
-        Add a System Prompt for the next call to trim of fit the LLM for the next chat conversation
-
-        """
         self.history.append({"role": "system", "content": system_instruction})
 
 
     def chat(self, user_input, allowed_expressions):
-        # Füge Benutzereingabe zum Verlauf hinzu
         self.history.append({"role": "user", "content": user_input})
 
         # Anweisung, nur die erlaubten Ausdrücke zu verwenden
@@ -81,7 +74,7 @@ class OpenAILLM(BaseLLM):
         self.history.append({"role": "system", "content": system_instruction})
 
         # Anweisung zur Auswahl einer Stimmungsänderung
-        possible_mood_triggers = self.persona.get_possible_triggers()  # hole mögliche Stimmungsänderungen
+        possible_mood_triggers = self.persona.get_possible_triggers()
         allowed_triggers_str = ', '.join(f'"{trigger}"' for trigger in possible_mood_triggers)
         mood_system_instruction = f"Based on the conversation tone, you can change the mood using one of the following: {allowed_triggers_str}. If the tone is negative or inappropriate, please change the mood accordingly."
         self.history.append({"role": "system", "content": mood_system_instruction})
