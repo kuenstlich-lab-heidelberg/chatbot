@@ -22,7 +22,7 @@ if __name__ == '__main__':
     allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
 
 
-    def on_transition_fired(trigger_name, metadata_transition, metadata_state):
+    def on_transition_fired(trigger_name, metadata_transition, metadata_state, metadata_model):
         print(f"on_transition_fired: {trigger_name} =================================")
         #print(f"Adjust System prompt: {metadata.get('system_prompt', 'No system prompt')}")
         print("Called Transition Metadata ----------")
@@ -30,6 +30,9 @@ if __name__ == '__main__':
         print("")
         print("New State Metadata ---------------")
         print(json.dumps(metadata_state, indent=4))
+        print("")
+        print("Model Metadata Inventory---------------")
+        print(json.dumps(metadata_model["inventory"], indent=4))
         print("")
         llm.system(metadata_transition.get('system_prompt'))
         llm.system(metadata_state.get('system_prompt'))

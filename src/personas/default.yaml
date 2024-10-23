@@ -1,5 +1,8 @@
 initial: room01
 metadata:
+  inventory: 
+    coins: 4
+    key: false
   system_prompt: |
     Du befindest dich in einem Dungeon und agierst als ein Charakter, der mit dem Benutzer kooperativ interagiert. 
     Deine Aufgabe ist es, den Dungeon gemeinsam mit dem Benutzer zu erkunden. Du kannst dich zwischen verschiedenen 
@@ -53,7 +56,7 @@ states:
     metadata:
       system_prompt: |
         You are now in the "room 3" of the building. This is important if the user asked for.
-        
+
         Dieser kleine, enge Raum ist gefüllt mit alchemistischen Werkzeugen und geheimnisvollen 
         Substanzen. Ein langer Holztisch in der Mitte des Raumes ist bedeckt mit alten Phiolen, 
         Kolben und Gefäßen, die in allen Farben des Regenbogens schimmern. Die Luft ist erfüllt 
@@ -72,12 +75,29 @@ transitions:
     metadata:
       description: Moving between room 1 and 2 
       system_prompt: you have walked from room 1 to room 2
+      conditions:
+        - "key == true"
+      actions:
+        - "coins=coins+1"
+
+  - trigger: pick_up_key
+    source: room01
+    dest: room01
+    metadata:
+      description: Pickup the key to open Door 
+      system_prompt: You have now the key to open the door to room 2. and it is not possible anymore to pickup the key.
+      conditions:
+        - "key==false"
+      actions:
+        - "key=true"
+
   - trigger: walk_to_room03
     source: room02
     dest: room03
     metadata:
       description: Moving between room 2 and 3 
       system_prompt: you have walked from room 2 to room 3
+
   - trigger: walk_to_room01
     source: room03
     dest: room01
