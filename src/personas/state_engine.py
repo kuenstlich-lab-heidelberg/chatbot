@@ -1,62 +1,80 @@
-import json
+import yaml  # Import the PyYAML library
 import os
 from transitions.extensions import HierarchicalGraphMachine
 import matplotlib.pyplot as plt
 
 class Persona:
-    def __init__(self, json_file_path, callback):
-        # Load the FSM configuration from the external JSON file
-        if not os.path.isabs(json_file_path):
+    def __init__(self, yaml_file_path, transition_callback):
+        # Load the FSM configuration from the external YAML file
+        if not os.path.isabs(yaml_file_path):
             # Get the directory of the current script
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            json_file_path = os.path.join(current_dir, json_file_path)
-        
-        # Read the JSON file and set up the machine
-        with open(json_file_path, 'r') as f:
-            self.fsm_config = json.load(f)
+            yaml_file_path = os.path.join(current_dir, yaml_file_path)
+
+        # Read the YAML file and set up the machine
+        with open(yaml_file_path, 'r') as f:
+            self.fsm_config = yaml.safe_load(f)  # Use yaml.safe_load to parse the YAML file
+
+
+        if transition_callback is None:
+            transition_callback = lambda: None
+        self.transition_callback = transition_callback
 
         self.transition_metadata = {}
+        self.state_metadata = {}
+
+        clean_states = self._prepare_states(self.fsm_config['states'])
         clean_transitions = self._prepare_transitions(self.fsm_config['transitions'])
+
         self.model = type('Model', (object,), {})()
             
         # Create the state machine
         self.machine = HierarchicalGraphMachine(
             model=self.model, 
-            states=self.fsm_config['states'], 
+            states=clean_states, 
             transitions=clean_transitions, 
             initial=self.fsm_config['initial'], 
             ignore_invalid_triggers=True
         )
 
-        # Register the callback for all transitions
-        self.callback = callback
-        self._register_metadata_callbacks()
+
+    def _prepare_states(self, states):
+        clean_states = []
+        for state in states:
+            if 'metadata' in state:
+                # Store the metadata for this state in the cache
+                self.state_metadata[state['name']] = state['metadata']
+                # Remove metadata from the state dictionary before passing it to the state machine
+                state = {key: value for key, value in state.items() if key != 'metadata'}
+            clean_states.append(state)
+        return clean_states
 
 
     def _prepare_transitions(self, transitions):
         clean_transitions = []
-        # Cleanup "metadata" attribute because "transitions" lib can't handle it.
-        #
         for transition in transitions:
             if 'metadata' in transition:
                 self.transition_metadata[transition['trigger']] = transition['metadata']
                 transition = {key: value for key, value in transition.items() if key != 'metadata'}
-            
+             
+            # Add 'after' callback for each transition
+            transition['after'] = self._create_transition_callback(transition['trigger'])
             clean_transitions.append(transition)
         
         return clean_transitions
 
 
-    def _register_metadata_callbacks(self):
-        for transition in self.fsm_config['transitions']:
-            trigger_name = transition['trigger']
-            metadata = transition.get('metadata', {})
-            self.machine.on_enter(transition['dest'], self._create_callback(trigger_name, metadata))
-
-
-    def _create_callback(self, trigger_name, metadata):
+    def _create_transition_callback(self, trigger_name):
+        """
+        This creates a callback function that is triggered after a specific transition.
+        """
         def callback(*args, **kwargs):
-            self.callback(trigger_name, metadata)
+            print(f"CALLBACK triggered for transition: {trigger_name}")
+            current_state = self.model.state
+            metadata_state = self.state_metadata.get(current_state, {})
+            metadata_trigger = self.transition_metadata.get(trigger_name, {})
+            # Call the user-defined transition callback with metadata
+            self.transition_callback(trigger_name, metadata_trigger, metadata_state)
         return callback
 
 
@@ -64,11 +82,12 @@ class Persona:
         try:
             self.model.trigger(event_name)
         except Exception as e:
+            print(e)
             print(f"Error triggering event '{event_name}': {e}")
 
 
     def get_system_prompt(self):
-        return self.fsm_config["system_prompt"]
+        return self.fsm_config["metadata"]["system_prompt"]
     
 
     def get_state(self):
@@ -90,28 +109,11 @@ class Persona:
         return available_triggers
 
 
-# Example callback function
-def on_transition_fired(trigger_name, metadata):
-    print(f"Transition triggered: {trigger_name}")
-    print(f"Description: {metadata.get('description', 'No description')}")
-    print(f"System prompt: {metadata.get('system_prompt', 'No system prompt')}")
 
 # Example of how you would use the class
 if __name__ == "__main__":
-    fsm = Persona("conversation.json", on_transition_fired)
+    fsm = Persona("default.yaml")
     
-    print("Initial state:", fsm.get_state())
-    print("Possible triggers:", fsm.get_possible_triggers())
-
-    # Trigger a state change
-    fsm.trigger('become_friendly')
-    print("State after 'become_friendly':", fsm.get_state())
-    print("Possible triggers after 'become_friendly':", fsm.get_possible_triggers())
-
-    fsm.trigger('become_annoyed')
-    print("State after 'become_annoyed':", fsm.get_state())
-    print("Possible triggers after 'become_annoyed':", fsm.get_possible_triggers())
-
     # Render the graph of the FSM
     graph = fsm.machine.get_graph()
     graph.draw('fsm_diagram.png', prog='dot')

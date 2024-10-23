@@ -66,27 +66,28 @@ class OpenAILLM(BaseLLM):
 
 
     def chat(self, user_input, allowed_expressions):
+        # Append user input to the history
         self.history.append({"role": "user", "content": user_input})
 
-        # Anweisung, nur die erlaubten Ausdrücke zu verwenden
+        # Instruct the LLM to use only allowed expressions
         allowed_expressions_str = ', '.join(f'"{expr}"' for expr in allowed_expressions)
         system_instruction = f"Please generate text with multiple appropriate emotions or gestures, but only use the following expressions: {allowed_expressions_str}. Ensure there are multiple expressions that are aligned with the flow of the conversation."
         self.history.append({"role": "system", "content": system_instruction})
 
-        # Anweisung zur Auswahl einer Stimmungsänderung
-        possible_mood_triggers = self.persona.get_possible_triggers()
-        allowed_triggers_str = ', '.join(f'"{trigger}"' for trigger in possible_mood_triggers)
-        mood_system_instruction = f"Based on the conversation tone, you can change the mood using one of the following: {allowed_triggers_str}. If the tone is negative or inappropriate, please change the mood accordingly."
-        self.history.append({"role": "system", "content": mood_system_instruction})
+        # Instruct the LLM to decide on a generic action trigger based on the context
+        possible_triggers = self.persona.get_possible_triggers()  # fetch available triggers
+        allowed_triggers_str = ', '.join(f'"{trigger}"' for trigger in possible_triggers)
+        trigger_system_instruction = f"Based on the conversation context or user commands, select the most appropriate action trigger from the following: {allowed_triggers_str}. These triggers could be actions or changes in the conversation. Choose accordingly."
+        self.history.append({"role": "system", "content": trigger_system_instruction})
 
-        # Trim Verlauf, um innerhalb des Token-Limits zu bleiben
+        # Trim the conversation history to stay within the token limit
         self.trim_history()
 
-        # Combined Function Definition for text, expressions, and mood trigger
+        # Function definitions for handling text, expressions, and triggers
         functions = [
             {
-                "name": "generate_text_with_expressions_and_mood",
-                "description": "Generates text with multiple appropriate emotions and gestures, and optionally triggers a mood transition.",
+                "name": "generate_text_with_expressions_and_trigger",
+                "description": "Generates text with multiple appropriate emotions and gestures, and optionally triggers an action or state transition.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -111,9 +112,9 @@ class OpenAILLM(BaseLLM):
                                 "required": ["expression", "start_time"]
                             }
                         },
-                        "mood_trigger": {
+                        "trigger": {
                             "type": "string",
-                            "description": "The trigger to switch the mood, chosen from the allowed triggers."
+                            "description": "The action or state transition trigger, chosen from the allowed triggers."
                         }
                     },
                     "required": ["text"]
@@ -121,7 +122,7 @@ class OpenAILLM(BaseLLM):
             }
         ]
 
-        # Erstelle Chat-Vervollständigung mit Function Calling
+        # Call the LLM API with the function definitions
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -142,15 +143,15 @@ class OpenAILLM(BaseLLM):
             if response and len(response.choices) > 0:
                 choice = response.choices[0]
                 message = choice.message
-
-                # Wenn es einen function_call gibt
+                #print(json.dumps(make_serializable(message), indent=4))
+                # Handle function calls if they exist
                 if message and message.function_call:
                     function_call = message.function_call
                     function_name = function_call.name
                     function_args = function_call.arguments
 
-                    # Handle text, expressions, and mood trigger together
-                    if function_name == "generate_text_with_expressions_and_mood":
+                    # Handle the combined generation of text, expressions, and action trigger
+                    if function_name == "generate_text_with_expressions_and_trigger":
                         try:
                             args = json.loads(function_args)
                             text = args.get("text", "")
@@ -160,17 +161,27 @@ class OpenAILLM(BaseLLM):
                             if len(expressions) <= 1:
                                 print("Warning: Only one or no expression provided. Ensure multiple expressions.")
                             
-                            trigger = args.get("mood_trigger")
-                            if trigger not in possible_mood_triggers:
+                            trigger = args.get("trigger")
+                            if trigger not in possible_triggers:
                                 trigger = None
                         except json.JSONDecodeError:
                             print("Error parsing function arguments.")
-                
-                # Falls keine function_call vorhanden ist
-                elif message and message.content:
-                    text = message.content  # Direkte Antwort vom Assistenten ohne Funktionsaufruf
 
-            # Sicherstellen, dass wir immer einen Text zurückgeben
+                    # Handle the dynamic trigger selection based on user input and context
+                    elif function_name == "choose_trigger_based_on_context":
+                        try:
+                            args = json.loads(function_args)
+                            trigger = args.get("trigger")
+                            if trigger not in possible_triggers:
+                                trigger = None
+                        except json.JSONDecodeError:
+                            print("Error parsing function arguments.")
+
+                # Handle direct responses without function calls
+                elif message and message.content:
+                    text = message.content
+
+            # Ensure we always return some text and the expressions
             if not text:
                 print(json.dumps(make_serializable(message), indent=4))
                 text = "I'm sorry, there was an issue processing your request."

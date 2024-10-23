@@ -7,9 +7,9 @@ class Console(BaseTTS):
 
     def speak(self, text):
         # Simulate speaking by printing the text to the console
-        print(f"CLIOutput: {text}")
+        print(f"Console: {text}")
 
     def stop(self):
         # Simulate stopping the speech
-        print("CLIOutput: stop")
+        pass
 

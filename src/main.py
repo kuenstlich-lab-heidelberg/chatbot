@@ -22,14 +22,20 @@ if __name__ == '__main__':
     allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
 
 
-    def on_transition_fired(trigger_name, metadata):
-        #print(f"Transition triggered: {trigger_name}")
+    def on_transition_fired(trigger_name, metadata_transition, metadata_state):
+        print(f"on_transition_fired: {trigger_name} =================================")
         #print(f"Adjust System prompt: {metadata.get('system_prompt', 'No system prompt')}")
-        llm.system(metadata.get('system_prompt'))
-        #pass
+        print("Called Transition Metadata ----------")
+        print(json.dumps(metadata_transition, indent=4))
+        print("")
+        print("New State Metadata ---------------")
+        print(json.dumps(metadata_state, indent=4))
+        print("")
+        llm.system(metadata_transition.get('system_prompt'))
+        llm.system(metadata_state.get('system_prompt'))
+        print("==========================================================================\n\n")
 
-
-    persona = Persona("default.json", on_transition_fired)
+    persona = Persona("default.yaml", on_transition_fired)
 
     def process_text(text):
         print("")
