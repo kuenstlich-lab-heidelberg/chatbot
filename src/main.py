@@ -12,18 +12,25 @@ from tts.coqui import CoquiTTS
 from tts.pytts import PyTTS
 from tts.console import Console
 
+from sound.jukebox import Jukebox
+
 from personas.state_engine import Persona
 
 from dotenv import load_dotenv
 load_dotenv() 
 
+jukebox = Jukebox()
+
+conversation_dir = "/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/"
+conversation_file = "zork.yaml"
+conversation_path = f"{conversation_dir}{conversation_file}"
 
 if __name__ == '__main__':
     allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
 
 
-    def on_transition_fired(trigger_name, metadata_transition, metadata_state, metadata_model):
-        print(f"on_transition_fired: {trigger_name} =================================")
+    def on_transition_fired(action, metadata_transition, metadata_state, metadata_model):
+        print(f"on_transition_fired: {action} =================================")
         print("Called Transition Metadata ----------")
         print(json.dumps(metadata_transition, indent=4))
         print("")
@@ -35,12 +42,14 @@ if __name__ == '__main__':
         print("")
         llm.system(metadata_transition.get('system_prompt'))
         llm.system(metadata_state.get('system_prompt'))
+
+        jukebox.stop_all()
+        if "ambient_sound" in metadata_state:
+            jukebox.play_sound(f"{conversation_dir}{metadata_state['ambient_sound']}")
+        
         print("==========================================================================\n\n")
 
-    #persona = Persona("default.yaml", on_transition_fired)
-    #persona = Persona("/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/document.yaml", on_transition_fired)
-    persona = Persona("/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/zork.yaml", on_transition_fired)
-
+    persona = Persona(conversation_path, on_transition_fired)
 
     def process_text(text):
         print("")
@@ -49,12 +58,12 @@ if __name__ == '__main__':
             tts.stop()
             response = llm.chat(text, allowed_expressions=allowed_expressions)
 
-            trigger = response.get("trigger") 
-            if trigger:
-                done = persona.trigger(trigger)
+            action = response.get("action") 
+            if action:
+                done = persona.trigger(action)
                 if done:
                     tts.speak(response["text"])
-                    llm.system(persona.get_trigger_system_prompt(trigger))
+                    llm.system(persona.get_action_system_prompt(action))
                 else:
                     # generate a negative answer to the last tried transition
                     text = """
@@ -75,15 +84,16 @@ if __name__ == '__main__':
     #llm = JanLLM()
     llm = OpenAILLM(persona)
 
-    tts = OpenAiTTS()
+    #tts = OpenAiTTS()
     #tts = CoquiTTS()
-    #tts = PyTTS()
+    tts = PyTTS()
     #tts = Console()
 
     #stt = WhisperLocal()
     #stt = WhisperOpenAi()
     stt = CLIText()
 
+    persona.trigger("start")
     # Process incomming text from the user one by one
     for text in stt.start_recording():
         process_text(text)

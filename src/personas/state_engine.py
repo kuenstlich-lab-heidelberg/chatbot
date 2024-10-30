@@ -50,7 +50,7 @@ class Persona:
                 print(f"Reuse {item} = {self.calculator.get_var(item)} from Lua sandbox")
 
         self.model_metadata = self.fsm_config.get("metadata", {})
-        self.trigger_metadata = {}
+        self.action_metadata = {}
         self.state_metadata = {}
         self.last_transition_error = ""
 
@@ -100,7 +100,7 @@ class Persona:
         metadata_freed_transitions = []
         for transition in transitions:
             metadata = transition.get('metadata', default_metadata)
-            self.trigger_metadata[transition['trigger']] = metadata
+            self.action_metadata[transition['trigger']] = metadata
             transition = {key: value for key, value in transition.items() if key != 'metadata'}
              
             transition['after'] = self._create_transition_callback(transition['trigger'])
@@ -111,45 +111,46 @@ class Persona:
         return metadata_freed_transitions
 
 
-    def _create_transition_callback(self, trigger_name):
+    def _create_transition_callback(self, action):
         """
         This creates a callback function that is triggered after a specific transition.
         """
         def callback(*args, **kwargs):
-            print(f"CALLBACK triggered: {trigger_name}")
+            print(f"CALLBACK action: {action}")
             current_state = self.model.state
             metadata_state = self.state_metadata.get(current_state, {})
-            metadata_trigger = self.trigger_metadata.get(trigger_name, {})
+            metadata_action = self.action_metadata.get(action, {})
             # Execute actions in the LuaSandbox
-            actions = metadata_trigger.get('actions', [])
-            for action in actions:
-                if len(action)>0:
-                    self.calculator.eval(action)  # Execute each action in the Lua sandbox
+            actions = metadata_action.get('actions', [])
+            for code in actions:
+                if len(code)>0:
+                    self.calculator.eval(code)  # Execute each action in the Lua sandbox
 
             self.model_metadata["inventory"] = self.calculator.get_all_vars()
 
             # Call the user-defined transition callback with metadata
-            self.transition_callback(trigger_name, metadata_trigger, metadata_state, self.model_metadata)
+            self.transition_callback(action, metadata_action, metadata_state, self.model_metadata)
         return callback
 
 
-    def _create_condition_callback(self, trigger_name):
+    def _create_condition_callback(self, action):
         """
         This creates a condition function that always returns True but can log or handle
-        the trigger name in future use cases.
+        the action in future use cases.
         """
         def condition_callback(*args, **kwargs):
-            print(f"Condition callback triggered for transition: {trigger_name}")
-            metadata_trigger = self.trigger_metadata.get(trigger_name, {})
-            conditions = metadata_trigger.get("conditions", [])
+            print(f"Condition callback for action: {action}")
+            metadata_action = self.action_metadata.get(action, {})
+            conditions = metadata_action.get("conditions", [])
 
             # Evaluate all conditions using the Lua sandbox (calculator)
             for condition in conditions:
                 if len(condition)>0:
                     result = self.calculator.eval(f'return ({condition})')
                     if not result:  # If any condition fails, return False
-                        self.last_transition_error = f"Condition '{condition}' failed for '{trigger_name}'"
+                        self.last_transition_error = f"Condition '{condition}' failed for '{action}'"
                         print(self.last_transition_error)
+                        print(self.calculator.get_all_vars())
                         return False
 
             return True  # All conditions passed, allow the transition
@@ -157,17 +158,17 @@ class Persona:
         return condition_callback
 
 
-    def trigger(self, trigger_name):
+    def trigger(self, action):
         try:
-            return self.model.trigger(trigger_name)
+            return self.model.trigger(action)
         except Exception as e:
             print(e)
-            print(f"Error triggering event '{trigger_name}': {e}")
+            print(f"Error triggering event '{action}': {e}")
             return False
 
 
-    def get_trigger_metadata(self, trigger_name):
-        return self.trigger_metadata.get(trigger_name, {})
+    def get_action_metadata(self, action):
+        return self.action_metadata.get(action, {})
 
 
     def get_global_system_prompt(self):
@@ -178,17 +179,17 @@ class Persona:
         return self.state_metadata[self.get_state()]["system_prompt"]
     
 
-    def get_trigger_system_prompt(self, trigger):
-        return self.trigger_metadata[trigger]["system_prompt"]
+    def get_action_system_prompt(self, action):
+        return self.action_metadata[action]["system_prompt"]
    
 
     def get_state(self):
         return self.model.state
     
 
-    def get_possible_triggers(self):
+    def get_possible_actions(self):
         current_state = self.model.state
-        available_triggers = []
+        available_actions = []
         
         # Go through machine's events and match transitions that are valid for the current state
         for event_name, event in self.machine.events.items():
@@ -196,9 +197,9 @@ class Persona:
             if not event_name.startswith("to_"):
                 for transition in event.transitions[self.model.state]:
                     if transition.source == current_state:
-                        available_triggers.append(event_name)
+                        available_actions.append(event_name)
         
-        return available_triggers
+        return available_actions
 
     def _start_file_watcher(self):
         """Start a watchdog observer to monitor the YAML file for changes."""

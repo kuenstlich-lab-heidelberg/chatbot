@@ -18,7 +18,7 @@ def make_serializable(obj):
     elif isinstance(obj, (str, int, float, bool, type(None))):
         return obj
     else:
-        return str(obj)  # Fallback: Convert any non-serializable objects to their string representation
+        return str(obj)
 
 
 # Definition der Klasse OpenAILLM, die von BaseLLM erbt
@@ -45,16 +45,30 @@ class OpenAILLM(BaseLLM):
         self.top_p = 0.95
         self.token_limit = 4000 
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        
         self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("API key for OpenAI not found in environment variables.")
+     
         self.client = OpenAI(api_key=self.api_key)
         self.system(persona.get_state_system_prompt())
 
 
     def system(self, system_instruction):
-        self.history.append({"role": "system", "content": system_instruction})
+        if system_instruction:
+            self.history.append({"role": "system", "content": system_instruction})
+        else:
+            print("Warning: No system instruction provided.")
 
 
     def chat(self, user_input, allowed_expressions):
+        if not user_input:
+            print("Error: No user input provided.")
+            return {"text": "No input provided.", "expressions": [], "action": None}
+
+        if not allowed_expressions:
+            print("Warning: No allowed expressions provided.")
+
         # Append user input to the history
         self.history.append({"role": "user", "content": user_input})
 
@@ -63,20 +77,20 @@ class OpenAILLM(BaseLLM):
         system_instruction = f"Please generate text with multiple appropriate emotions or gestures, but only use the following expressions: {allowed_expressions_str}. Ensure there are multiple expressions that are aligned with the flow of the conversation."
         self.history.append({"role": "system", "content": system_instruction})
 
-        # Instruct the LLM to decide on a generic action trigger based on the context
-        possible_triggers = self.persona.get_possible_triggers()  # fetch available triggers
-        allowed_triggers_str = ', '.join(f'"{trigger}"' for trigger in possible_triggers)
-        trigger_system_instruction = f"Based on the conversation context or user commands, select the most appropriate action trigger from the following: {allowed_triggers_str}. These triggers could be actions or changes in the conversation. Choose accordingly."
-        self.history.append({"role": "system", "content": trigger_system_instruction})
+        # Instruct the LLM to decide on a generic action  based on the context
+        possible_actions = self.persona.get_possible_actions()
+        possible_actions_str = ', '.join(f'"{action}"' for action in possible_actions)
+        action_system_instruction = f"Based on the conversation context or user commands, select the most appropriate action action from the following: {possible_actions_str}. These could be actions or changes in the conversation. Choose accordingly."
+        self.history.append({"role": "system", "content": action_system_instruction})
 
         # Trim the conversation history to stay within the token limit
         self._trim_history()
 
-        # Function definitions for handling text, expressions, and triggers
+        # Function definitions for handling text, expressions, and action
         functions = [
             {
-                "name": "generate_text_with_expressions_and_trigger",
-                "description": "Generates text with multiple appropriate emotions and gestures, and optionally triggers an action or state transition.",
+                "name": "generate_text_with_expressions_and_action",
+                "description": "Generates text with multiple appropriate emotions and gestures, and optionally an action or state transition.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -101,9 +115,9 @@ class OpenAILLM(BaseLLM):
                                 "required": ["expression", "start_time"]
                             }
                         },
-                        "trigger": {
+                        "action": {
                             "type": "string",
-                            "description": "The action or state transition trigger, chosen from the allowed triggers."
+                            "description": "The action or state transition function, chosen from the allowed actions."
                         }
                     },
                     "required": ["text"]
@@ -126,7 +140,7 @@ class OpenAILLM(BaseLLM):
 
             text = ""
             expressions = []
-            trigger = None
+            action = None
 
             # Process the LLM response
             if response and len(response.choices) > 0:
@@ -139,8 +153,8 @@ class OpenAILLM(BaseLLM):
                     function_name = function_call.name
                     function_args = function_call.arguments
 
-                    # Handle the combined generation of text, expressions, and action trigger
-                    if function_name == "generate_text_with_expressions_and_trigger":
+                    # Handle the combined generation of text, expressions, and action
+                    if function_name == "generate_text_with_expressions_and_action":
                         try:
                             args = json.loads(function_args)
                             text = args.get("text", "")
@@ -150,19 +164,9 @@ class OpenAILLM(BaseLLM):
                             if len(expressions) <= 1:
                                 print("Warning: Only one or no expression provided. Ensure multiple expressions.")
                             
-                            trigger = args.get("trigger")
-                            if trigger not in possible_triggers:
-                                trigger = None
-                        except json.JSONDecodeError:
-                            print("Error parsing function arguments.")
-
-                    # Handle the dynamic trigger selection based on user input and context
-                    elif function_name == "choose_trigger_based_on_context":
-                        try:
-                            args = json.loads(function_args)
-                            trigger = args.get("trigger")
-                            if trigger not in possible_triggers:
-                                trigger = None
+                            action = args.get("action")
+                            if action not in possible_actions:
+                                action = None
                         except json.JSONDecodeError:
                             print("Error parsing function arguments.")
 
@@ -179,7 +183,7 @@ class OpenAILLM(BaseLLM):
             print(f"Error: {e}")
             text = "I'm sorry, there was an issue processing your request."
 
-        return {"text": text, "expressions": expressions, "trigger": trigger}
+        return {"text": text, "expressions": expressions, "action": action}
 
 
 
