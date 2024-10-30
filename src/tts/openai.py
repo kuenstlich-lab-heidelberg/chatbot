@@ -31,9 +31,9 @@ class OpenAiTTS(BaseTTS):
                 )
                 with self.client.audio.speech.with_streaming_response.create(
                     input=text,
-                    speed=1.0,
+                    speed=1.2,
                     response_format="pcm",
-                    voice="nova",
+                    voice="onyx",
                     model="tts-1"
                 ) as response:
                     for chunk in response.iter_bytes(chunk_size=8192):

@@ -26,11 +26,15 @@ class OpenAILLM(BaseLLM):
     def __init__(self, persona):
         super().__init__()
         self.persona = persona
-        self.model = "gpt-4"
+        #self.model = "gpt-4"
+        #self.model = "gpt-3.5-turbo"
+        self.model = "gpt-4o-mini"
+        #self.model = "gpt-4o"
+
         self.history = [
             {
                 "role": "system", 
-                "content": self.persona.get_system_prompt()
+                "content": self.persona.get_global_system_prompt()
             }
         ]
         self.max_tokens = 2048
@@ -43,22 +47,7 @@ class OpenAILLM(BaseLLM):
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.client = OpenAI(api_key=self.api_key)
-
-
-    def count_tokens(self, messages):
-        return sum(len(self.tokenizer.encode(message["content"])) for message in messages)
-
-
-    def trim_history(self):
-        token_count_before = self.count_tokens(self.history)
-        while self.count_tokens(self.history) > self.token_limit:
-            if len(self.history) > 1:
-                self.history.pop(1)
-            else:
-                break
-        token_count_after = self.count_tokens(self.history)
-        if token_count_before != token_count_after:
-            print(f"History trimmed: Token count before = {token_count_before}, Token count after = {token_count_after}")
+        self.system(persona.get_state_system_prompt())
 
 
     def system(self, system_instruction):
@@ -81,7 +70,7 @@ class OpenAILLM(BaseLLM):
         self.history.append({"role": "system", "content": trigger_system_instruction})
 
         # Trim the conversation history to stay within the token limit
-        self.trim_history()
+        self._trim_history()
 
         # Function definitions for handling text, expressions, and triggers
         functions = [
@@ -191,3 +180,20 @@ class OpenAILLM(BaseLLM):
             text = "I'm sorry, there was an issue processing your request."
 
         return {"text": text, "expressions": expressions, "trigger": trigger}
+
+
+
+    def _count_tokens(self, messages):
+        return sum(len(self.tokenizer.encode(message["content"])) for message in messages)
+
+
+    def _trim_history(self):
+        token_count_before = self._count_tokens(self.history)
+        while self._count_tokens(self.history) > self.token_limit:
+            if len(self.history) > 1:
+                self.history.pop(1)
+            else:
+                break
+        token_count_after = self._count_tokens(self.history)
+        if token_count_before != token_count_after:
+            print(f"History trimmed: Token count before = {token_count_before}, Token count after = {token_count_after}")
