@@ -36,7 +36,7 @@ class JanLLM(BaseLLM):
     def trim_history(self):
         # Ensure the history does not exceed the token limit
         token_count_before = self.count_tokens(self.history)
-        print(token_count_before)
+
         while self.count_tokens(self.history) > self.token_limit:
             # Remove the oldest message, but keep the system message
             if len(self.history) > 1:

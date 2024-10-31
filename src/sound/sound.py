@@ -8,4 +8,3 @@ class Sound:
         """Stop this sound from playing."""
         if self.channel.get_busy():
             self.channel.stop()
-            print(f"Stopped sound on channel {self.channel}")

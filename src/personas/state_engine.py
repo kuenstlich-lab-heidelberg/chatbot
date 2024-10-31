@@ -126,10 +126,8 @@ class Persona:
                 if len(code)>0:
                     self.calculator.eval(code)  # Execute each action in the Lua sandbox
 
-            self.model_metadata["inventory"] = self.calculator.get_all_vars()
-
             # Call the user-defined transition callback with metadata
-            self.transition_callback(action, metadata_action, metadata_state, self.model_metadata)
+            self.transition_callback(current_state, action, metadata_action, metadata_state)
         return callback
 
 
@@ -158,8 +156,13 @@ class Persona:
         return condition_callback
 
 
+    def get_inventory(self):
+        return self.calculator.get_all_vars()
+    
+
     def trigger(self, action):
         try:
+            print(f"trigger('{action}')")
             return self.model.trigger(action)
         except Exception as e:
             print(e)
@@ -222,21 +225,15 @@ class FileChangeHandler(FileSystemEventHandler):
         super().__init__()
         self.persona = persona
         self.last_modified = os.path.getmtime(persona.yaml_file_path)
-        print(self.last_modified)
+
 
     def on_modified(self, event):
-        print(event)
         # Normalize paths to ensure consistent comparison
         event_path_normalized = unicodedata.normalize('NFC', event.src_path)
         yaml_path_normalized = unicodedata.normalize('NFC', self.persona.yaml_file_path)
 
-        print(f"'{event_path_normalized}'")
-        print(f"'{yaml_path_normalized}'")
-        print(event_path_normalized == yaml_path_normalized)
-
         if event_path_normalized == yaml_path_normalized:
             new_modified_time = os.path.getmtime(event.src_path)
-            print(new_modified_time != self.last_modified)
             if new_modified_time != self.last_modified:
                 self.last_modified = new_modified_time
                 print("YAML file modified, reloading FSM configuration.")

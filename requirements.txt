@@ -25,3 +25,5 @@ PyYAML==6.0.2
 lupa==2.2
 watchdog==5.0.3
 pygame==2.6.1
+fastapi==0.115.4
+uvicorn==0.32.0

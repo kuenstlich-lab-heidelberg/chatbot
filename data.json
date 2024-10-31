@@ -1,0 +1,12 @@
+{
+    "header": "Current System Status",
+    "expression": "neutral",
+    "inventory": {
+        "has_letter": false,
+        "key_for_room_2": false,
+        "key_for_front_door": false,
+        "window_is_open": false,
+        "coins": 0,
+        "has_letter_opend": false
+    }
+}

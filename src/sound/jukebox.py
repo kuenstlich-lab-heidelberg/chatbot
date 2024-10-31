@@ -12,7 +12,7 @@ class Jukebox:
     def __init__(self):
         self.playing_sounds = []
 
-    def play_sound(self, file_path, loop=False):
+    def play_sound(self, file_path, loop=True):
         """
         Play a sound from the given file path.
         :param file_path: Absolute path to the sound file (wav or mp3).
@@ -38,15 +38,15 @@ class Jukebox:
         # Create a PlayingSound object and add it to the list of playing sounds
         playing_sound = Sound(sound, channel)
         self.playing_sounds.append(playing_sound)
-        print(f"Playing sound '{file_path}' on channel {channel}")
         return playing_sound
+
 
     def stop_all(self):
         """Stop all currently playing sounds."""
         for playing_sound in self.playing_sounds:
             playing_sound.stop()
         self.playing_sounds.clear()
-        print("Stopped all sounds.")
+
 
 # Example Usage
 if __name__ == "__main__":
