@@ -28,8 +28,8 @@ class OpenAILLM(BaseLLM):
         self.persona = persona
         #self.model = "gpt-4"
         #self.model = "gpt-3.5-turbo"
-        #self.model = "gpt-4o-mini"
-        self.model = "gpt-4o"
+        self.model = "gpt-4o-mini"
+        #self.model = "gpt-4o"
 
         self.history = []
         self.max_tokens = 2048
@@ -49,184 +49,119 @@ class OpenAILLM(BaseLLM):
         self.system(persona.get_state_system_prompt())
 
 
+    def dump(self):
+        print(json.dumps(self.history, indent=4))
+
+
     def system(self, system_instruction):
         if system_instruction:
-            self.history.append({"role": "system", "content": system_instruction})
+            self._add_to_history("system", system_instruction)
         else:
             print("Warning: No system instruction provided.")
 
 
-    def chat(self, user_input, allowed_expressions):
+    def _add_to_history(self, role, message):
+        if not message:
+            print("Warning: No message provided.")
+            return
+        if self.history and self.history[-1]["role"] == role and self.history[-1]["content"] == message:
+            print("Duplicate message detected; not adding to history.")
+            return
+        self.history.append({"role": role, "content": message})
+
+
+    def chat(self, user_input, allowed_expressions=[]):
         if not user_input:
-            print("Error: No user input provided.")
             return {"text": "No input provided.", "expressions": [], "action": None}
+        self._add_to_history("user", user_input)
 
-        if not allowed_expressions:
-            print("Warning: No allowed expressions provided.")
-
-        sceen_json = {
-                "role": "system", 
-                "content": self.persona.get_global_system_prompt()
-            }
-        
-        # Instruct the LLM to use only allowed expressions
-        allowed_expressions_str = ', '.join(f'"{expr}"' for expr in allowed_expressions)
-        allowed_expressions_instruction = f"""
-            Für die Interaktion und die Darstellung von Emotionen und Gesten stehen ausschließlich die folgenden 
-            „Expressions“ zur Verfügung:  
-                [{allowed_expressions_str}]
-
-            Jede Antwort sollte mehrere dieser „Expressions“ enthalten, die im Timing und Inhalt exakt zur Aussage 
-            und dem Gesprächsfluss passen. Die gewählten „Expressions“ müssen die Stimmung und Bedeutung des Gesagten 
-            stimmig unterstützen und dürfen dabei keine eigenen Handlungen oder neuen Optionen einführen."""
-        allowed_expressions_json = {"role": "system", "content": allowed_expressions_instruction}
-
-        # Instruct the LLM to decide on a generic action  based on the context
-        possible_actions = self.persona.get_possible_actions()
-        possible_actions_str = ', '.join(f'"{action}"' for action in possible_actions)
-        possible_actions_instruction = f"""
-            Im Hintergrund wähle ich je nach Gesprächskontext oder auf expliziten Wunsch des Benutzers die 
-            passende „Action“. Dabei achte ich darauf, dass das Handlungsverb der Aktion semantisch 
-            zur Anweisung passt, um Verwechslungen wie „öffne...“ statt „untersuche...“. Verben die semantisch identisch
-            sind wie ghen, laufen, rennen oder aufheben, nehmen,...können als identisch und gleichwertig angesehen werden.
-            Jede gewählte Aktion soll im Sinne der Absicht des Nutzers ausgeführt werden.
-
-            Nur die folgenden „Actions“ sind verfügbar: 
-               [{possible_actions_str}]
-
-            Wenn keine dieser Actions dem Befehl des Nutzers entspricht, fahre ich ohne technische 
-            Hinweise oder Rückmeldung ganz normal im Gesprächsverlauf fort, ohne eine Aktion auszuführen.
-        """
-        possible_actions_json = {"role": "system", "content": possible_actions_instruction}
-
-
-        # Append user input to the history
-        self.history.append({"role": "user", "content": user_input})
-
-        # Trim the conversation history to stay within the token limit
         self._trim_history()
+        response = self._call_openai_model(user_input)
+        print(response)
+        if (response["text"] is None or response["text"].strip() == "") and response["action"]:
+            response = self._retry_for_text(response)
+        self._add_to_history("assistant", response["text"])
+        return response
+    
 
-        # Function definitions for handling text, expressions, and action
-        functions = [
-            {
-                "name": "generate_text_with_expressions_and_action",
-                "description": "Generates text with multiple appropriate emotions and gestures, and optionally an action or state transition.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "text": {
-                            "type": "string",
-                            "description": "The text to be spoken."
-                        },
-                        "expressions": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "expression": {
-                                        "type": "string",
-                                        "description": "Emotion or expression to be performed. Ensure multiple expressions are used."
-                                    },
-                                    "start_time": {
-                                        "type": "number",
-                                        "description": "Time in seconds when the gesture should be performed. try to sync them wiht the response text"
-                                    }
-                                },
-                                "required": ["expression", "start_time"]
-                            }
-                        },
-                        "action": {
-                            "type": "string",
-                            "description": "The action or state transition function, chosen from the allowed actions."
-                        }
-                    },
-                    "required": ["text"]
-                }
-            }
-        ]
+    def _call_openai_model(self, user_input):
+        combined_history = [
+            {"role": "system", "content": self.persona.get_global_system_prompt()},
+            {"role": "system", "content": self._possible_actions_instruction()}
+        ] + self.history
 
-        print(json.dumps(functions, indent=4))
-        # Call the LLM API with the function definitions
+        functions = self._define_action_functions()
+
         try:
-            combined_history = [ sceen_json, allowed_expressions_json, possible_actions_json, *self.history]
-            print("===============================================================================")
-            print(json.dumps(combined_history, indent=4))
-            print("===============================================================================")
-            print("request LLM")
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages= combined_history,
+                messages=combined_history,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p,
-                frequency_penalty=self.frequency_penalty,
-                presence_penalty=self.presence_penalty,
                 functions=functions,
             )
-            print("request LLM done.")
-            text = ""
-            expressions = []
-            action = None
-
-            # Process the LLM response
-            if response and len(response.choices) > 0:
-                choice = response.choices[0]
-                message = choice.message
-                #print(json.dumps(make_serializable(message), indent=4))
-                # Handle function calls if they exist
-                if message and message.function_call:
-                    function_call = message.function_call
-                    function_name = function_call.name
-                    function_args = function_call.arguments
-
-                    # Handle the combined generation of text, expressions, and action
-                    if function_name == "generate_text_with_expressions_and_action":
-                        try:
-                            args = json.loads(function_args)
-                            text = args.get("text", "")
-                            expressions = args.get("expressions", [])
-                            
-                            # Ensure there are multiple expressions
-                            if len(expressions) <= 1:
-                                print("Warning: Only one or no expression provided. Ensure multiple expressions.")
-                            
-                            action = args.get("action")
-                            if action not in possible_actions:
-                                action = None
-                        except json.JSONDecodeError:
-                            print("Error parsing function arguments.")
-
-                # Handle direct responses without function calls
-                elif message and message.content:
-                    text = message.content
-
-            # Ensure we always return some text and the expressions
-            if not text:
-                print(json.dumps(make_serializable(message), indent=4))
-                text = "I'm sorry, there was an issue processing your request."
-
+            return self._process_response(response)
         except openai.OpenAIError as e:
             print(f"Error: {e}")
-            text = "I'm sorry, there was an issue processing your request."
+            return {"text": "I'm sorry, there was an issue processing your request.", "expressions": [], "action": None}
 
-        result ={"text": text, "expressions": expressions, "action": action}
-        print(json.dumps(result, indent=4))
-        self.history.append({"role": "assistant", "content": text})
+    def _define_action_functions(self):
+        print(json.dumps(self.persona.get_possible_actions(), indent=4))
+        return [
+            {
+                "name": action,
+                "description": self.persona.get_action_description(action),
+                "parameters": {}  # No parameters
+            }
+            for action in self.persona.get_possible_actions()
+        ]
 
-        return result
+    def _possible_actions_instruction(self):
+        possible_actions = self.persona.get_possible_actions()
+        possible_actions_str = ', '.join(f'"{action}"' for action in possible_actions)
+        return f"Available actions: [{possible_actions_str}]"
 
 
-    def _count_tokens(self, messages):
-        return sum(len(self.tokenizer.encode(message["content"])) for message in messages)
+    def _process_response(self, response):
+        text, action = "", None
+        if response and response.choices:
+            choice = response.choices[0].message
+            if choice.function_call:
+                action = choice.function_call.name
+            elif choice.content:
+                text = choice.content
+        return {"text": text, "expressions":[], "action": action}
+
+
+    def _retry_for_text(self, initial_response):
+        action = initial_response["action"]
+        if action in self.persona.get_possible_actions():
+            # Instruct the model to respond as if the action was successful
+            self.system(f"""
+                Respond as if the action '{action}' was executed successfully. 
+                Do not reveal any internal details to the user.
+            """)
+        else:
+            # If the action is not valid, we clear it to avoid returning an incorrect action
+            action = None
+
+        # Retry without requesting a function call, focusing on obtaining a text response
+        second_response = self._call_openai_model("")
+        print(second_response)
+        # Preserve the original action and update only the text
+        initial_response["text"] = second_response["text"]
+        initial_response["action"] = action  # Ensure the action from the first response is kept
+
+        return initial_response
 
 
     def _trim_history(self):
-        token_count_before = self._count_tokens(self.history)
         while self._count_tokens(self.history) > self.token_limit:
             if len(self.history) > 1:
                 self.history.pop(0)
             else:
                 break
-        token_count_after = self._count_tokens(self.history)
-        if token_count_before != token_count_after:
-            print(f"History trimmed: Token count before = {token_count_before}, Token count after = {token_count_after}")
+
+    def _count_tokens(self, messages):
+        return sum(len(self.tokenizer.encode(message["content"])) for message in messages)

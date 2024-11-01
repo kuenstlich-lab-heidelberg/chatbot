@@ -32,7 +32,7 @@ class Persona:
     def _load(self):
         # Store the current state if the model already exists
         current_state = self.model.state if self.model and hasattr(self.model, 'state') else None
-        print(f"Current state before reload: {current_state}")
+        #print(f"Current state before reload: {current_state}")
 
         # Read the YAML file and set up the machine
         with open(self.yaml_file_path, 'r') as f:
@@ -69,7 +69,7 @@ class Persona:
 
         # Attempt to restore the previous state if it exists in the new state list
         if current_state and current_state in [state['name'] for state in clean_states]:
-            print(f"Restoring previous state: {current_state}")
+            #print(f"Restoring previous state: {current_state}")
             self.machine.set_state(current_state)
         else:
             print("Previous state not found in new configuration, using initial state.")
@@ -130,7 +130,6 @@ class Persona:
             self.transition_callback(current_state, action, metadata_action, metadata_state)
         return callback
 
-
     def _create_condition_callback(self, action):
         """
         This creates a condition function that always returns True but can log or handle
@@ -154,10 +153,10 @@ class Persona:
             return True  # All conditions passed, allow the transition
 
         return condition_callback
-
+    
 
     def get_inventory(self):
-        return self.calculator.get_all_vars()
+        return { "state":self.get_state(),  **self.calculator.get_all_vars()}
     
 
     def trigger(self, action):
@@ -186,6 +185,11 @@ class Persona:
         return self.action_metadata[action]["system_prompt"]
    
 
+    def get_action_description(self, action):
+        #print(self.action_metadata[action])
+        return self.action_metadata[action].get("description", "")
+   
+
     def get_state(self):
         return self.model.state
     
@@ -193,21 +197,33 @@ class Persona:
     def get_possible_actions(self):
         current_state = self.model.state
         available_actions = []
-        
+
+        def is_triggerable(action):
+            metadata_action = self.action_metadata.get(action, {})
+            conditions = metadata_action.get("conditions", [])
+            for condition in conditions:
+                if len(condition)>0:
+                    result = self.calculator.eval(f'return ({condition})')
+                    if not result:
+                        return False
+            return True 
+
         # Go through machine's events and match transitions that are valid for the current state
         for event_name, event in self.machine.events.items():
             # Filter out the "to_XYZ" transitions and match the valid ones
             if not event_name.startswith("to_"):
                 for transition in event.transitions[self.model.state]:
-                    if transition.source == current_state:
+                    # check if the current state matches with the transistion source
+                    if transition.source == current_state and is_triggerable(event_name):
                         available_actions.append(event_name)
         
         return available_actions
 
+
     def _start_file_watcher(self):
         """Start a watchdog observer to monitor the YAML file for changes."""
         watch_dir =  os.path.dirname(self.yaml_file_path) +"/"
-        print(f"Init file-watch on dir '{watch_dir}'")
+       # print(f"Init file-watch on dir '{watch_dir}'")
 
         self.observer = Observer()
         self.observer.schedule(FileChangeHandler(self), watch_dir, recursive=True)
@@ -236,7 +252,7 @@ class FileChangeHandler(FileSystemEventHandler):
             new_modified_time = os.path.getmtime(event.src_path)
             if new_modified_time != self.last_modified:
                 self.last_modified = new_modified_time
-                print("YAML file modified, reloading FSM configuration.")
+                #print("YAML file modified, reloading FSM configuration.")
                 self.persona._load()  # Reload FSM configuration
 
 

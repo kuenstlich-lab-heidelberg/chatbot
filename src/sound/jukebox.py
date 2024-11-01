@@ -19,26 +19,33 @@ class Jukebox:
         :param loop: If True, play sound in an infinite loop; otherwise, play once.
         :return: PlayingSound object for controlling this sound.
         """
-        if not os.path.isabs(file_path):
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            file_path = os.path.join(current_dir, file_path)
-     
-        # Load the sound
-        sound = mixer.Sound(file_path)
+        if not file_path or len(file_path)==0:
+            return #silently
         
-        # Find a free channel to play the sound
-        channel = mixer.find_channel()
-        if channel is None:
-            raise RuntimeError("No free channel available to play sound")
+        try:
+            if not os.path.isabs(file_path):
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                file_path = os.path.join(current_dir, file_path)
+        
+            # Load the sound
+            sound = mixer.Sound(file_path)
+            
+            # Find a free channel to play the sound
+            channel = mixer.find_channel()
+            if channel is None:
+                raise RuntimeError("No free channel available to play sound")
 
-        # Play the sound
-        loops = -1 if loop else 0
-        channel.play(sound, loops=loops)
-        
-        # Create a PlayingSound object and add it to the list of playing sounds
-        playing_sound = Sound(sound, channel)
-        self.playing_sounds.append(playing_sound)
-        return playing_sound
+            # Play the sound
+            loops = -1 if loop else 0
+            channel.play(sound, loops=loops)
+            
+            # Create a PlayingSound object and add it to the list of playing sounds
+            playing_sound = Sound(sound, channel)
+            self.playing_sounds.append(playing_sound)
+            return playing_sound
+        except:
+            print(f"Unable to play sound: '{file_path}'")
+            return None
 
 
     def stop_all(self):

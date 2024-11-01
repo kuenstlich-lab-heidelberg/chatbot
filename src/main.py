@@ -6,11 +6,14 @@ from stt.cli_text import CLIText
 
 from llm.jan import JanLLM
 from llm.openai import OpenAILLM
+from llm.gemini import GeminiLLM
 
 from tts.openai import OpenAiTTS
 from tts.coqui import CoquiTTS
 from tts.pytts import PyTTS
 from tts.console import Console
+from tts.piper import PiperTTS
+
 
 from motorcontroller.mock import MotorControlerMock
 
@@ -37,25 +40,30 @@ if __name__ == '__main__':
 
     def on_transition_fired(state, action, metadata_transition, metadata_state):
         global last_action, last_state
-        if last_action != action:
-            llm.system(metadata_transition.get('system_prompt'))
 
         if last_state != state:
             llm.system(metadata_state.get('system_prompt'))
+            jukebox.stop_all()
+            if "ambient_sound" in metadata_state:
+                jukebox.play_sound(f"{conversation_dir}{metadata_state['ambient_sound']}")
 
-        jukebox.stop_all()
-        if "ambient_sound" in metadata_state:
-            jukebox.play_sound(f"{conversation_dir}{metadata_state['ambient_sound']}")
+        if last_action != action:
+            llm.system(metadata_transition.get('system_prompt'))
+            if "sound_effect" in metadata_transition:
+                jukebox.play_sound(f"{conversation_dir}{metadata_transition['sound_effect']}", False)
+
         last_action = action
         last_state = state
 
 
     persona = Persona(conversation_path, on_transition_fired)
 
+
     def process_text(text):
-        print("")
-        print(text)
-        print(persona.get_state())
+        if text == "debug":
+            llm.dump()
+            return
+        
         if(len(text)>0):
             tts.stop()
             response = llm.chat(text, allowed_expressions=allowed_expressions)
@@ -90,17 +98,20 @@ if __name__ == '__main__':
 
     #llm = JanLLM()
     llm = OpenAILLM(persona)
+    #llm = GeminiLLM(persona)
 
-    tts = OpenAiTTS()
+    #tts = OpenAiTTS()
     #tts = CoquiTTS()
     #tts = PyTTS()
     #tts = Console()
+    tts = PiperTTS()
 
     #stt = WhisperLocal()
-    #stt = WhisperOpenAi()
-    stt = CLIText()
+    stt = WhisperOpenAi()
+    #stt = CLIText()
 
     persona.trigger("start")
+    process_text("Erkläre mir worum es hier geht und wer du bist")
     controller.set([], persona.get_inventory())
 
     # Process incomming text from the user one by one

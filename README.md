@@ -6,6 +6,10 @@ Use python 3.12
 ```sh
 brew install python-tk@3.12
 brew install graphviz
+brew install espeak-ng
+
+pip install piper-phonemize-cross
+pip install piper-tts
 
 export PATH=$(brew --prefix graphviz):$PATH
 export CFLAGS="-I $(brew --prefix graphviz)/include"

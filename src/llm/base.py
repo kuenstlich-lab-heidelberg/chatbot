@@ -8,3 +8,12 @@ class BaseLLM(abc.ABC):
     @abc.abstractmethod
     def chat(self, user_input):
         pass
+
+    @abc.abstractmethod
+    def system(self, system_instruction):
+        pass
+
+
+    @abc.abstractmethod
+    def dump(self):
+        pass

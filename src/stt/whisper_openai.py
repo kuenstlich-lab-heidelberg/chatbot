@@ -22,34 +22,35 @@ class WhisperOpenAi(BaseSTT):
         self.on_speech_start_callback = on_speech_start
 
     def on_speech_start(self):
-        print("start voice")
         self.frames = []
         self.on_speech_start_callback()
 
 
     def on_speech_end(self):
-        print("end voice")
         self.current_transcription = self.transcribe()
         # Now we use the is_false_positive method here to check the transcription
         if not self._is_false_positive(self.current_transcription):
             self.transcription_ready = True
         else:
             # If it's a false positive, we simply ignore the transcription
-            print("Transcription ignored due to false positive match.")
+            #print("Transcription ignored due to false positive match.")
+            pass
 
 
     def on_speech_data(self, frame, sample_rate):
         self.frames.append(frame)
         return (frame, pyaudio.paContinue)
  
+
     def _is_false_positive(self, transcription):
         # Check if any of the false positive phrases are in the transcription
         if transcription:
             for phrase in _false_positiv:
                 if phrase.lower() in transcription.lower():
-                    print(f"Filtered out transcription due to false positive: '{phrase}' found.")
+                    #print(f"Filtered out transcription due to false positive: '{phrase}' found.")
                     return True
         return False
+
 
     def _create_wav_file(self, frames, sample_rate):
         buffer = io.BytesIO()
@@ -99,6 +100,7 @@ class WhisperOpenAi(BaseSTT):
                 if self.transcription_ready:
                     self.transcription_ready = False
                     if self.current_transcription:
+                        print(self.current_transcription)
                         yield self.current_transcription
                 else:
                     # Add a small sleep to prevent excessive CPU usage

@@ -64,7 +64,7 @@ class JanLLM(BaseLLM):
             "temperature": self.temperature,
             "top_p": self.top_p
         }
-        print("start")
+
         response = requests.post(self.url, headers=headers, data=json.dumps(payload))
         print("end")
         return response.json()
