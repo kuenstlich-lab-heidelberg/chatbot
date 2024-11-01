@@ -3,3 +3,4 @@ venv
 realtimesst.log
 **/__pycache__/**
 models/**
+piper_voices/
