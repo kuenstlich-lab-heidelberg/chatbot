@@ -107,8 +107,8 @@ if __name__ == '__main__':
     tts = PiperTTS()
 
     #stt = WhisperLocal()
-    stt = WhisperOpenAi()
-    #stt = CLIText()
+    #stt = WhisperOpenAi()
+    stt = CLIText()
 
     persona.trigger("start")
     process_text("Erkläre mir worum es hier geht und wer du bist")

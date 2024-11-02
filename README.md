@@ -7,6 +7,7 @@ Use python 3.12
 brew install python-tk@3.12
 brew install graphviz
 brew install espeak-ng
+brew install libsndfile
 
 pip install piper-phonemize-cross
 pip install piper-tts
