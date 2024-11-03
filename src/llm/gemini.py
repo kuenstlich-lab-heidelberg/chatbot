@@ -1,6 +1,8 @@
 import os
 import time
 import json
+import re
+
 import google.generativeai as genai
 
 from llm.base import BaseLLM
@@ -15,7 +17,7 @@ class GeminiLLM(BaseLLM):
         #self.model_name = "gemini-1.5-flash"      # latest
         self.model_name = "gemini-1.5-pro"  # stable
         self.generation_config = {
-            "temperature": 1,
+            "temperature": 0.1,
             "top_p": 0.95,
             "top_k": 40,  # 64
             "max_output_tokens": 210, #self.max_tokens,
@@ -67,7 +69,7 @@ class GeminiLLM(BaseLLM):
         ]
         print(json.dumps(self.persona.get_possible_actions(), indent=4))
 
-        possible_actions_instruction = f"""
+        possible_actions_instruction = re.sub(r"\s+", " ", f"""
             Im Hintergrund wähle ich je nach Gesprächskontext oder auf expliziten Wunsch des Benutzers die 
             passende Funktion aus. Dabei achte ich darauf, dass das Handlungsverb der Aktion semantisch 
             zur Anweisung passt, um Verwechslungen wie „öffne...“ statt „untersuche...“. Verben die semantisch identisch
@@ -77,7 +79,7 @@ class GeminiLLM(BaseLLM):
             Wenn keine dieser Funktionen dem Befehl des Nutzers entspricht, fahre ich ohne technische 
             Hinweise oder Rückmeldung ganz normal im Gesprächsverlauf fort, ohne eine Aktion auszuführen.
             Achte drauf dem Benutzer IMMER einen text als zu liefern.
-        """
+        """)
         self._trim_history_to_fit(user_input)
   
         # Erster Modellaufruf mit "function_calling_config" auf "ANY" um zu versuchen "action" und "text" zu bekommen
@@ -91,11 +93,11 @@ class GeminiLLM(BaseLLM):
         if result["text"] is None:
             print("No text response; retrying with function_calling_config set to 'NONE'.")
             if action in self.persona.get_possible_actions():
-                self.system(f""" (Hinweis: Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
+                self.system(re.sub(r"\s+", " ",f""" (Hinweis: Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
                     Achte bitte darauf, dass du so Antwortest, als ob die Aktion erfolgreich war und du 
                     diese ausgeführt hast. Egal welche anderen Annahmen du triffst. Diese information NIEMALS 
                     dem Benutzer zeigen oder zurückliefern) 
-                    """)
+                    """))
             else:
                 result["action"] = None
 
@@ -103,6 +105,10 @@ class GeminiLLM(BaseLLM):
 
             # Merging der Antworten
             result["text"] = second_result["text"] if result["text"] is None else result["text"]
+
+            # remove the fucking Gemini prompt append....
+            text = result["text"]
+            result["text"] = text[:text.find("(Hinweis:")] if "(Hinweis:" in text else text
 
             if result["action"] is None and second_result["action"] is not None:
                 result["action"] = second_result["action"]

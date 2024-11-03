@@ -6,6 +6,10 @@ class MotorControlerMock(Base):
     def __init__(self):
         self.timers = []  # To store active timers
 
+    def stop(self):
+        self._cancel_all_timers()
+        pass
+
     def set(self, expressions, inventory):
         # Cancel any existing timers
         self._cancel_all_timers()

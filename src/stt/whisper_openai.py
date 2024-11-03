@@ -15,12 +15,18 @@ class WhisperOpenAi(BaseSTT):
     def __init__(self, on_speech_start=None):
         self.vad = WebrtcVad(on_speech_start=self.on_speech_start, on_speech_end=self.on_speech_end, on_speech_data=self.on_speech_data)
         self.frames = []
-        self.do_run = False
+        self._stopped = False
         self.transcription_ready = False
         self.current_transcription = None
         if on_speech_start is None:
             on_speech_start = lambda: None  # Leere Lambda-Funktion
         self.on_speech_start_callback = on_speech_start
+
+
+    def stop(self):
+        self.do_run = False
+        self.vad.close()
+
 
     def on_speech_start(self):
         self.frames = []
@@ -112,7 +118,3 @@ class WhisperOpenAi(BaseSTT):
         finally:
             self.vad.close()
 
-
-    def close(self):
-        self.do_run = False
-        self.vad.close()

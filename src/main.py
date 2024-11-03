@@ -1,4 +1,6 @@
 import json
+import sys 
+import signal
 
 from stt.whisper_local import WhisperLocal
 from stt.whisper_openai import WhisperOpenAi
@@ -7,6 +9,7 @@ from stt.cli_text import CLIText
 from llm.jan import JanLLM
 from llm.openai import OpenAILLM
 from llm.gemini import GeminiLLM
+from llm.gemini_remote_history import GeminiRemoteHistoryLLM
 
 from tts.openai import OpenAiTTS
 from tts.coqui import CoquiTTS
@@ -33,6 +36,21 @@ conversation_path = f"{conversation_dir}{conversation_file}"
 
 last_action = ""
 last_state = ""
+stop_requested = False
+
+# Stop function to handle cleanup
+def stop():
+    global stop_requested
+    stop_requested = True
+    print("\nStopping gracefully...")
+    tts.stop()
+    jukebox.stop_all()
+    controller.stop()
+    sys.exit(0)
+
+# Handle Ctrl+C to call stop function
+signal.signal(signal.SIGINT, lambda sig, frame: stop())
+
 
 if __name__ == '__main__':
     allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
@@ -96,8 +114,9 @@ if __name__ == '__main__':
     # Choose between diffeent LLM. All of them has differrent behaviours and different "character"
     #
     #llm = JanLLM()
-    #llm = OpenAILLM(persona)
-    llm = GeminiLLM(persona)
+    llm = OpenAILLM(persona)
+    #llm = GeminiLLM(persona)
+    #llm = GeminiRemoteHistoryLLM(persona)
 
     # Choose the voice you like by budget and sounding
     #
@@ -110,15 +129,20 @@ if __name__ == '__main__':
     # Differnet STT (speech to text) implementation. On CUDA computer we can use the WisperLocal without
     # any latence....absolute amazing
     #
-    stt = WhisperLocal()
+    #stt = WhisperLocal()
     #stt = WhisperOpenAi()
-    #stt = CLIText()
+    stt = CLIText()
 
     persona.trigger("start")
     process_text("Erkläre mir worum es hier geht und wer du bist")
     controller.set([], persona.get_inventory())
 
-    # Process incomming text from the user one by one
-    for text in stt.start_recording():
-        process_text(text)
 
+    try:
+        for text in stt.start_recording():
+            if stop_requested:
+                break
+            process_text(text)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        stop()
