@@ -32,7 +32,7 @@ class LuaSandbox(BaseSandbox):
 
     def eval(self, code):
         """Evaluates Lua code."""
-        print(f"Execute '{code}'")
+        #print(f"Execute '{code}'")
 
         # empty condition == True
         if not code or len(code)==0:

@@ -14,7 +14,6 @@ from tts.pytts import PyTTS
 from tts.console import Console
 from tts.piper import PiperTTS
 
-
 from motorcontroller.mock import MotorControlerMock
 
 from sound.jukebox import Jukebox
@@ -23,6 +22,7 @@ from personas.state_engine import Persona
 
 from dotenv import load_dotenv
 load_dotenv() 
+
 
 jukebox = Jukebox()
 controller = MotorControlerMock()
@@ -36,7 +36,6 @@ last_state = ""
 
 if __name__ == '__main__':
     allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
-
 
     def on_transition_fired(state, action, metadata_transition, metadata_state):
         global last_action, last_state
@@ -69,7 +68,7 @@ if __name__ == '__main__':
             response = llm.chat(text, allowed_expressions=allowed_expressions)
 
             action = response.get("action") 
-            print(f"ACTION:{action}")
+            #print(f"ACTION:{action}")
 
             if action:
                 done = persona.trigger(action)
@@ -90,25 +89,30 @@ if __name__ == '__main__':
                     controller.set(response["expressions"], persona.get_inventory() )
                     tts.speak(response["text"])
             else:
-
                 controller.set(response["expressions"], persona.get_inventory() )
                 tts.speak(response["text"])
 
 
-
+    # Choose between diffeent LLM. All of them has differrent behaviours and different "character"
+    #
     #llm = JanLLM()
-    llm = OpenAILLM(persona)
-    #llm = GeminiLLM(persona)
+    #llm = OpenAILLM(persona)
+    llm = GeminiLLM(persona)
 
-    #tts = OpenAiTTS()
+    # Choose the voice you like by budget and sounding
+    #
+    tts = OpenAiTTS()
     #tts = CoquiTTS()
     #tts = PyTTS()
     #tts = Console()
-    tts = PiperTTS()
+    #tts = PiperTTS()
 
-    #stt = WhisperLocal()
+    # Differnet STT (speech to text) implementation. On CUDA computer we can use the WisperLocal without
+    # any latence....absolute amazing
+    #
+    stt = WhisperLocal()
     #stt = WhisperOpenAi()
-    stt = CLIText()
+    #stt = CLIText()
 
     persona.trigger("start")
     process_text("Erkläre mir worum es hier geht und wer du bist")

@@ -3,9 +3,7 @@ import time
 import json
 import google.generativeai as genai
 
-
 from llm.base import BaseLLM
-
 
 # Definition der Klasse OpenAILLM, die von BaseLLM erbt
 class GeminiLLM(BaseLLM):
@@ -14,13 +12,13 @@ class GeminiLLM(BaseLLM):
         self.max_tokens= 8192
         self.persona = persona
         self.history = []
-        self.model_name = "gemini-1.5-flash"      # latest
+        #self.model_name = "gemini-1.5-flash"      # latest
         self.model_name = "gemini-1.5-pro"  # stable
         self.generation_config = {
             "temperature": 1,
             "top_p": 0.95,
             "top_k": 40,  # 64
-            "max_output_tokens": self.max_tokens,
+            "max_output_tokens": 210, #self.max_tokens,
             "response_mime_type": "text/plain",
         }
         self.api_key=os.environ["GEMINI_API_KEY"]
@@ -28,7 +26,9 @@ class GeminiLLM(BaseLLM):
             raise ValueError("API key 'GEMINI_API_KEY' not found in environment variables.")
         genai.configure(api_key=self.api_key)
         self.model_info = genai.get_model(f"models/{self.model_name}")
-        self.model = genai.GenerativeModel(f"models/{self.model_name}")
+
+        # just for token count....not for Q&A or anything else
+        self.token_model = genai.GenerativeModel(f"models/{self.model_name}")
 
         # Returns the "context window" for the model,
         # which is the combined input and output token limits.
@@ -42,7 +42,7 @@ class GeminiLLM(BaseLLM):
 
     def system(self, system_instruction):
         if system_instruction:
-            self._add_to_history(role="model", message=system_instruction)
+            self._add_to_history(role="model", message=system_instruction.replace(f'\n', ''))
         else:
             print("Warning: No system instruction provided.")
 
@@ -52,6 +52,7 @@ class GeminiLLM(BaseLLM):
             print("Error: No user input provided.")
             return {"text": "No input provided.", "expressions": [], "action": None}
 
+        user_input = user_input.replace(f'\n', '')
         tools = [
             genai.protos.Tool(
                 function_declarations=[
@@ -83,18 +84,17 @@ class GeminiLLM(BaseLLM):
         #
         result = self._get_response_with_config(user_input, tools, possible_actions_instruction, function_calling_config="ANY")
         action = result["action"]
-        print(action)
+
         # Falls Gemini nur "action" geliefert hat, dann starten wir einen zweiten Aufruf um uns nur eine "text" Antwort abzuholen.
         # Kann manchmal passieren. AI = fuzzy
         #
         if result["text"] is None:
             print("No text response; retrying with function_calling_config set to 'NONE'.")
             if action in self.persona.get_possible_actions():
-                self.system(f"""
-                    Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
+                self.system(f""" (Hinweis: Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
                     Achte bitte darauf, dass du so Antwortest, als ob die Aktion erfolgreich war und du 
                     diese ausgeführt hast. Egal welche anderen Annahmen du triffst. Diese information NIEMALS 
-                    dem Benutzer zeigen oder zurückliefern.
+                    dem Benutzer zeigen oder zurückliefern) 
                     """)
             else:
                 result["action"] = None
@@ -142,7 +142,7 @@ class GeminiLLM(BaseLLM):
                 model = genai.GenerativeModel(
                     model_name=self.model_name,
                     generation_config=self.generation_config,
-                    system_instruction=f"{self.persona.get_global_system_prompt()}\n\n{instruction}",
+                    system_instruction=f"{self.persona.get_global_system_prompt()}. {instruction}",
                     tools=tools,
                     safety_settings={
                         'HATE': 'BLOCK_NONE',
@@ -197,5 +197,5 @@ class GeminiLLM(BaseLLM):
 
     def _calculate_token_count(self, text):
         """Calculate token count for a given text using the Gemini API."""
-        return self.model.count_tokens(text).total_tokens
+        return self.token_model.count_tokens(text).total_tokens
 

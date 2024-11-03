@@ -46,7 +46,7 @@ class OpenAILLM(BaseLLM):
             raise ValueError("API key for OpenAI not found in environment variables.")
      
         self.client = OpenAI(api_key=self.api_key)
-        self.system(persona.get_state_system_prompt())
+        #self.system(persona.get_state_system_prompt())
 
 
     def dump(self):

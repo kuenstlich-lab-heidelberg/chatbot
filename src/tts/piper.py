@@ -7,7 +7,7 @@ from piper.voice import PiperVoice
 class PiperTTS(BaseTTS):
     def __init__(self):
         super().__init__()
-        self.model = "/Users/D023280/Documents/workspace/künstlich-lab/chat/chatbot/piper_voices/Thorsten-Voice_Hessisch_Piper_high-Oct2023.onnx"
+        self.model = "/Users/D023280/Documents/workspace/künstlich-lab/chat/chatbot/piper_voices/de_DE-thorsten-high.onnx"
         self.voice = PiperVoice.load(self.model)
         self.sample_rate = self.voice.config.sample_rate
         self.stop_event = threading.Event()
