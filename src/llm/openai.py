@@ -77,7 +77,7 @@ class OpenAILLM(BaseLLM):
 
         self._trim_history()
         response = self._call_openai_model(user_input)
-        print(response)
+        print(json.dumps(response, indent=4))
         if (response["text"] is None or response["text"].strip() == "") and response["action"]:
             response = self._retry_for_text(response)
         self._add_to_history("assistant", response["text"])
@@ -148,7 +148,7 @@ class OpenAILLM(BaseLLM):
 
         # Retry without requesting a function call, focusing on obtaining a text response
         second_response = self._call_openai_model("")
-        print(second_response)
+
         # Preserve the original action and update only the text
         initial_response["text"] = second_response["text"]
         initial_response["action"] = action  # Ensure the action from the first response is kept

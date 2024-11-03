@@ -15,7 +15,6 @@ class CLIText(BaseSTT):
 
     def start_recording(self):
         """Starts recording by taking user input from CLI until stopped."""
-        print("CLIText is ready. Type your input and press Enter:")
         while not self._stopped:
             self.on_text_start()
             transcription = input("You: ")

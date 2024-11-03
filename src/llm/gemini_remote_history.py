@@ -97,7 +97,7 @@ class GeminiRemoteHistoryLLM(BaseLLM):
         # Kann manchmal passieren. AI = fuzzy
         #
         if result["text"] is None:
-            print("No text response; retrying with function_calling_config set to 'NONE'.")
+            #"No text response; retrying with function_calling_config set to 'NONE'.")
             if action in self.persona.get_possible_actions():
                 self.system(f"""Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
                     Achte bitte darauf, dass du so Antwortest, als ob die Aktion erfolgreich war und du 

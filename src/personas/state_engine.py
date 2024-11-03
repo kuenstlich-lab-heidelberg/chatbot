@@ -116,7 +116,7 @@ class Persona:
         This creates a callback function that is triggered after a specific transition.
         """
         def callback(*args, **kwargs):
-            print(f"CALLBACK action: {action}")
+            #print(f"CALLBACK action: {action}")
             current_state = self.model.state
             metadata_state = self.state_metadata.get(current_state, {})
             metadata_action = self.action_metadata.get(action, {})
@@ -161,7 +161,7 @@ class Persona:
 
     def trigger(self, action):
         try:
-            print(f"trigger('{action}')")
+            print(f"Action: '{action}'")
             return self.model.trigger(action)
         except Exception as e:
             print(e)

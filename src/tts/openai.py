@@ -12,8 +12,6 @@ class OpenAiTTS(BaseTTS):
         self.audio_thread = None
 
     def speak(self, text):
-        print("OpenAiTTS: " + text)
-
         # Ensure any ongoing playback is stopped before starting a new one
         self.stop()
 
@@ -55,7 +53,6 @@ class OpenAiTTS(BaseTTS):
 
 
     def stop(self):
-        print("OpenAiTTS: stop")
         try:
             # Set the stop event to signal the playback thread to stop
             self.stop_event.set()

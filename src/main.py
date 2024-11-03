@@ -16,6 +16,7 @@ from tts.coqui import CoquiTTS
 from tts.pytts import PyTTS
 from tts.console import Console
 from tts.piper import PiperTTS
+from tts.google import GoogleTTS
 
 from motorcontroller.mock import MotorControlerMock
 
@@ -61,13 +62,15 @@ if __name__ == '__main__':
         if last_state != state:
             llm.system(metadata_state.get('system_prompt'))
             jukebox.stop_all()
-            if "ambient_sound" in metadata_state:
-                jukebox.play_sound(f"{conversation_dir}{metadata_state['ambient_sound']}")
+            value = metadata_state.get("ambient_sound")
+            if value and value.strip():
+                jukebox.play_sound(f"{conversation_dir}{value}")
 
         if last_action != action:
             llm.system(metadata_transition.get('system_prompt'))
-            if "sound_effect" in metadata_transition:
-                jukebox.play_sound(f"{conversation_dir}{metadata_transition['sound_effect']}", False)
+            value = metadata_transition.get("sound_effect")
+            if value and value.strip():
+                jukebox.play_sound(f"{conversation_dir}{value}", False)
 
         last_action = action
         last_state = state
@@ -77,6 +80,7 @@ if __name__ == '__main__':
 
 
     def process_text(text):
+        print("=====================================================================================================")
         if text == "debug":
             llm.dump()
             return
@@ -84,10 +88,7 @@ if __name__ == '__main__':
         if(len(text)>0):
             tts.stop()
             response = llm.chat(text, allowed_expressions=allowed_expressions)
-
             action = response.get("action") 
-            #print(f"ACTION:{action}")
-
             if action:
                 done = persona.trigger(action)
                 if done:
@@ -120,11 +121,12 @@ if __name__ == '__main__':
 
     # Choose the voice you like by budget and sounding
     #
-    tts = OpenAiTTS()
+    #tts = OpenAiTTS()
     #tts = CoquiTTS()
     #tts = PyTTS()
     #tts = Console()
     #tts = PiperTTS()
+    tts = GoogleTTS()
 
     # Differnet STT (speech to text) implementation. On CUDA computer we can use the WisperLocal without
     # any latence....absolute amazing

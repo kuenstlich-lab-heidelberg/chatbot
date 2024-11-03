@@ -1,7 +1,7 @@
-import google.cloud.texttospeech as tts
 from dotenv import load_dotenv
 load_dotenv() 
 
+import google.cloud.texttospeech as tts
 
 def text_to_wav(voice_name: str, text: str):
     language_code = "-".join(voice_name.split("-")[:2])
@@ -11,6 +11,7 @@ def text_to_wav(voice_name: str, text: str):
     )
     audio_config = tts.AudioConfig(audio_encoding=tts.AudioEncoding.LINEAR16)
 
+    # Initialize the client (uses service account JSON for authentication)
     client = tts.TextToSpeechClient()
     response = client.synthesize_speech(
         input=text_input,
@@ -22,5 +23,6 @@ def text_to_wav(voice_name: str, text: str):
     with open(filename, "wb") as out:
         out.write(response.audio_content)
         print(f'Generated speech saved to "{filename}"')
-        
-text_to_wav("de-DE-Journey-D", "Guten Tag, ich bin dein Diener")
+
+# Example usage
+text_to_wav("de-DE-Journey-D", "Hallo, wie kann ich Ihnen helfen?")
