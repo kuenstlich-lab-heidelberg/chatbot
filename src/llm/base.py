@@ -17,3 +17,8 @@ class BaseLLM(abc.ABC):
     @abc.abstractmethod
     def dump(self):
         pass
+
+
+    @abc.abstractmethod
+    def reset(self):
+        pass

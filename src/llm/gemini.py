@@ -42,6 +42,10 @@ class GeminiLLM(BaseLLM):
         print(json.dumps(self.history, indent=4))
 
 
+    def reset(self):
+        self.history = []
+
+
     def system(self, system_instruction):
         if system_instruction:
             self._add_to_history(role="model", message=system_instruction.replace(f'\n', ''))
@@ -117,6 +121,7 @@ class GeminiLLM(BaseLLM):
         self._add_to_history(role='user', message=user_input)
         self._add_to_history(role='model', message=result["text"] )
 
+        print(json.dumps(result, indent=4))
         return result
 
 

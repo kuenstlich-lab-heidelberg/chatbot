@@ -81,8 +81,11 @@ if __name__ == '__main__':
 
     def process_text(text):
         print("=====================================================================================================")
-        if text == "debug":
+        if text.lower() == "debug":
             llm.dump()
+            return
+        if text.lower() == "reset":
+            llm.reset()
             return
         
         if(len(text)>0):
@@ -136,7 +139,7 @@ if __name__ == '__main__':
     stt = CLIText()
 
     persona.trigger("start")
-    process_text("Erkläre mir worum es hier geht und wer du bist")
+    process_text("Erkläre mir in kurzen Worten worum es hier geht und wer du bist")
     controller.set([], persona.get_inventory())
 
 

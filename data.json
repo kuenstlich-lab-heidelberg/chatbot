@@ -3,15 +3,15 @@
     "expression": "neutral",
     "inventory": {
         "state": "Outside",
-        "has_letter_opend": false,
-        "key_for_room_2": false,
+        "streichhoelzer": false,
+        "coins": 0,
+        "has_letter": true,
+        "key_for_front_door": false,
+        "window_is_open": false,
+        "has_letter_opend": true,
+        "sit_on_tree": true,
         "kerze": false,
         "kerze_an": false,
-        "coins": 0,
-        "window_is_open": false,
-        "sit_on_tree": false,
-        "key_for_front_door": false,
-        "has_letter": false,
-        "streichhoelzer": false
+        "key_for_room_2": false
     }
 }

@@ -28,15 +28,15 @@ class OpenAILLM(BaseLLM):
         self.persona = persona
         #self.model = "gpt-4"
         #self.model = "gpt-3.5-turbo"
-        self.model = "gpt-4o-mini"
-        #self.model = "gpt-4o"
+        #self.model = "gpt-4o-mini"
+        self.model = "gpt-4o"
 
         self.history = []
         self.max_tokens = 2048
         self.stop = None
         self.frequency_penalty = 0
         self.presence_penalty = 0
-        self.temperature = 0.2
+        self.temperature = 0.1
         self.top_p = 0.95
         self.token_limit = 4000 
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
@@ -53,6 +53,10 @@ class OpenAILLM(BaseLLM):
         print(json.dumps(self.history, indent=4))
 
 
+    def reset(self):
+        self.history = []
+
+
     def system(self, system_instruction):
         if system_instruction:
             self._add_to_history("system", system_instruction)
@@ -64,9 +68,11 @@ class OpenAILLM(BaseLLM):
         if not message:
             print("Warning: No message provided.")
             return
+        
         if self.history and self.history[-1]["role"] == role and self.history[-1]["content"] == message:
             print("Duplicate message detected; not adding to history.")
             return
+        
         self.history.append({"role": role, "content": message})
 
 
@@ -77,10 +83,10 @@ class OpenAILLM(BaseLLM):
 
         self._trim_history()
         response = self._call_openai_model(user_input)
-        print(json.dumps(response, indent=4))
         if (response["text"] is None or response["text"].strip() == "") and response["action"]:
             response = self._retry_for_text(response)
         self._add_to_history("assistant", response["text"])
+        print(json.dumps(response, indent=4))
         return response
     
 
