@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from transitions.extensions import HierarchicalGraphMachine
 from scripting.lua import LuaSandbox
 
-class Persona:
+class StateEngine:
     def __init__(self, yaml_file_path, transition_callback= None):
         # convert relative to absolute file path
         if not os.path.isabs(yaml_file_path):
@@ -115,8 +115,9 @@ class Persona:
         """
         This creates a callback function that is triggered after a specific transition.
         """
-        def callback(*args, **kwargs):
+        def callback( *args, **kwargs):
             #print(f"CALLBACK action: {action}")
+            current_session = self.session
             current_state = self.model.state
             metadata_state = self.state_metadata.get(current_state, {})
             metadata_action = self.action_metadata.get(action, {})
@@ -127,7 +128,7 @@ class Persona:
                     self.calculator.eval(code)  # Execute each action in the Lua sandbox
 
             # Call the user-defined transition callback with metadata
-            self.transition_callback(current_state, action, metadata_action, metadata_state)
+            self.transition_callback(current_session, current_state, metadata_state, action, metadata_action)
         return callback
 
     def _create_condition_callback(self, action):
@@ -159,14 +160,17 @@ class Persona:
         return { "state":self.get_state(),  **self.calculator.get_all_vars()}
     
 
-    def trigger(self, action):
+    def trigger(self, session, action):
         try:
             print(f"Action: '{action}'")
+            self.session = session
             return self.model.trigger(action)
         except Exception as e:
             print(e)
             print(f"Error triggering event '{action}': {e}")
             return False
+        finally:
+            self.session = None
 
 
     def get_action_metadata(self, action):
@@ -258,7 +262,7 @@ class FileChangeHandler(FileSystemEventHandler):
 
 # Example of how you would use the class
 if __name__ == "__main__":
-    fsm = Persona("default.yaml", None)
+    fsm = StateEngine("default.yaml", None)
     fsm.trigger("become_annoyed")
 
     # Render the graph of the FSM

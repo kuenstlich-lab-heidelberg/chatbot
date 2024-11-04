@@ -5,7 +5,7 @@ import time
 from openai import OpenAI
 
 class OpenAiTTS(BaseTTS):
-    def __init__(self):
+    def __init__(self, audio_sink):
         super().__init__()
         self.stop_event = threading.Event()
         self.player_stream = None
@@ -13,7 +13,7 @@ class OpenAiTTS(BaseTTS):
         self.audio_thread = None
         self.max_retries = 3
 
-    def speak(self, text, audio_sink):
+    def speak(self, text):
         # Ensure any ongoing playback is stopped before starting a new one
         self.stop()
 

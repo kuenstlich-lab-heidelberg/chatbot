@@ -1,11 +1,11 @@
 import numpy as np
-import pyaudio
+
 import threading
 from tts.base import BaseTTS
 from piper.voice import PiperVoice
 
 class PiperTTS(BaseTTS):
-    def __init__(self):
+    def __init__(self, audio_sink):
         super().__init__()
         self.model = "/Users/D023280/Documents/workspace/künstlich-lab/chat/chatbot/piper_voices/de_DE-thorsten-high.onnx"
         self.voice = PiperVoice.load(self.model)
@@ -15,7 +15,7 @@ class PiperTTS(BaseTTS):
         self.audio_thread = None
         self.speed = 1.3
 
-    def speak(self, text, audio_sink):
+    def speak(self, text):
         print("PiperTTS: " + text)
 
         # Ensure any ongoing playback is stopped before starting a new one

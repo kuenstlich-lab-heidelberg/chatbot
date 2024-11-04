@@ -23,9 +23,8 @@ def make_serializable(obj):
 
 # Definition der Klasse OpenAILLM, die von BaseLLM erbt
 class OpenAILLM(BaseLLM):
-    def __init__(self, persona):
+    def __init__(self):
         super().__init__()
-        self.persona = persona
         #self.model = "gpt-4"
         #self.model = "gpt-3.5-turbo"
         #self.model = "gpt-4o-mini"
@@ -46,7 +45,6 @@ class OpenAILLM(BaseLLM):
             raise ValueError("API key for OpenAI not found in environment variables.")
      
         self.client = OpenAI(api_key=self.api_key)
-        #self.system(persona.get_state_system_prompt())
 
 
     def dump(self):
@@ -76,27 +74,27 @@ class OpenAILLM(BaseLLM):
         self.history.append({"role": role, "content": message})
 
 
-    def chat(self, user_input, allowed_expressions=[]):
+    def chat(self, session, user_input):
         if not user_input:
             return {"text": "No input provided.", "expressions": [], "action": None}
         self._add_to_history("user", user_input)
-
         self._trim_history()
-        response = self._call_openai_model(user_input)
+
+        response = self._call_openai_model(session)
         if (response["text"] is None or response["text"].strip() == "") and response["action"]:
-            response = self._retry_for_text(response)
+            response = self._retry_for_text(session, response)
         self._add_to_history("assistant", response["text"])
         print(json.dumps(response, indent=4))
         return response
     
 
-    def _call_openai_model(self, user_input):
+    def _call_openai_model(self, session):
         combined_history = [
-            {"role": "system", "content": self.persona.get_global_system_prompt()},
-            {"role": "system", "content": self._possible_actions_instruction()}
+            {"role": "system", "content": session.state_engine.get_global_system_prompt()},
+            {"role": "system", "content": self._possible_actions_instruction(session)}
         ] + self.history
 
-        functions = self._define_action_functions()
+        functions = self._define_action_functions(session)
 
         try:
             response = self.client.chat.completions.create(
@@ -112,19 +110,19 @@ class OpenAILLM(BaseLLM):
             print(f"Error: {e}")
             return {"text": "I'm sorry, there was an issue processing your request.", "expressions": [], "action": None}
 
-    def _define_action_functions(self):
-        print(json.dumps(self.persona.get_possible_actions(), indent=4))
+    def _define_action_functions(self, session):
+        print(json.dumps(session.state_engine.get_possible_actions(), indent=4))
         return [
             {
                 "name": action,
-                "description": self.persona.get_action_description(action),
+                "description": session.state_engine.get_action_description(action),
                 "parameters": {}  # No parameters
             }
-            for action in self.persona.get_possible_actions()
+            for action in session.state_engine.get_possible_actions()
         ]
 
-    def _possible_actions_instruction(self):
-        possible_actions = self.persona.get_possible_actions()
+    def _possible_actions_instruction(self, session):
+        possible_actions = session.state_engine.get_possible_actions()
         possible_actions_str = ', '.join(f'"{action}"' for action in possible_actions)
         return f"Available actions: [{possible_actions_str}]"
 
@@ -140,9 +138,9 @@ class OpenAILLM(BaseLLM):
         return {"text": text, "expressions":[], "action": action}
 
 
-    def _retry_for_text(self, initial_response):
+    def _retry_for_text(self, session, initial_response):
         action = initial_response["action"]
-        if action in self.persona.get_possible_actions():
+        if action in session.state_engine.get_possible_actions():
             # Instruct the model to respond as if the action was successful
             self.system(f"""
                 Respond as if the action '{action}' was executed successfully. 
@@ -153,7 +151,7 @@ class OpenAILLM(BaseLLM):
             action = None
 
         # Retry without requesting a function call, focusing on obtaining a text response
-        second_response = self._call_openai_model("")
+        second_response = self._call_openai_model(session)
 
         # Preserve the original action and update only the text
         initial_response["text"] = second_response["text"]

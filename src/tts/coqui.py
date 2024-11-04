@@ -5,7 +5,7 @@ from tts.base import BaseTTS
 
 
 class CoquiTTS(BaseTTS):
-    def __init__(self):
+    def __init__(self, audio_sink):
         super().__init__()
         self.engine = CoquiEngine(
             language="de",
@@ -18,7 +18,7 @@ class CoquiTTS(BaseTTS):
             tokenizer="stanza")
 
 
-    def speak(self, text, audio_sink):
+    def speak(self, text):
         print("CoquiTTS: "+text)
         self.stream.feed(text)
         time.sleep(1.0)
