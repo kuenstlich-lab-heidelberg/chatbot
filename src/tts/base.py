@@ -6,7 +6,7 @@ class BaseTTS(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         pass
 
     @abc.abstractmethod

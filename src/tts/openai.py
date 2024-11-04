@@ -13,7 +13,7 @@ class OpenAiTTS(BaseTTS):
         self.audio_thread = None
         self.max_retries = 3
 
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         # Ensure any ongoing playback is stopped before starting a new one
         self.stop()
 

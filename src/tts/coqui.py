@@ -18,7 +18,7 @@ class CoquiTTS(BaseTTS):
             tokenizer="stanza")
 
 
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         print("CoquiTTS: "+text)
         self.stream.feed(text)
         time.sleep(1.0)

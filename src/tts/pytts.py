@@ -10,7 +10,7 @@ class PyTTS(BaseTTS):
         self.engine.setProperty('volume', 1.0)  # Setting volume level (0.0 to 1.0)
 
 
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         print("PyTTS: "+text)
         self.engine.say(text)
         self.engine.runAndWait()

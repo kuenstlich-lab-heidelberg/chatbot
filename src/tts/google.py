@@ -13,7 +13,7 @@ class GoogleTTS(BaseTTS):
         self.sample_rate = 24000  # Google TTS standard sample rate
         self.stop_event = threading.Event()
         self.lock = threading.Lock()  # Lock for thread-safe access to the player stream
-        self.player_stream = None
+        #self.player_stream = None
         self.audio_thread = None
 
         self.pyaudio_instance = pyaudio.PyAudio()  # Singleton instance of pyaudio
@@ -50,7 +50,7 @@ class GoogleTTS(BaseTTS):
         audio_data[:num_samples] = (audio_data[:num_samples].astype(float) * fade).astype(np.int16)
         return audio_data
 
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         self.stop()
 
         self.stop_event.clear()

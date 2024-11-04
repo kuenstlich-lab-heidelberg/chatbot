@@ -134,9 +134,9 @@ if __name__ == '__main__':
     # Differnet STT (speech to text) implementation. On CUDA computer we can use the WisperLocal without
     # any latence....absolute amazing
     #
-    #stt = WhisperLocal()
+    stt = WhisperLocal()
     #stt = WhisperOpenAi()
-    stt = CLIText()
+    #stt = CLIText()
 
     persona.trigger("start")
     process_text("Erkläre mir in kurzen Worten worum es hier geht und wer du bist")

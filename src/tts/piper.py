@@ -15,7 +15,7 @@ class PiperTTS(BaseTTS):
         self.audio_thread = None
         self.speed = 1.3
 
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         print("PiperTTS: " + text)
 
         # Ensure any ongoing playback is stopped before starting a new one

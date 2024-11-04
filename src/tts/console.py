@@ -5,7 +5,7 @@ class Console(BaseTTS):
     def __init__(self):
         super().__init__()
 
-    def speak(self, text):
+    def speak(self, text, audio_sink):
         # Simulate speaking by printing the text to the console
         print(f"Console: {text}")
 
