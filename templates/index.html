@@ -72,7 +72,7 @@
         }
 
         /* Buttons */
-        button {
+        button, #micButton {
             padding: 0 15px;
             margin-left: 8px;
             border-radius: 20px;
@@ -82,9 +82,20 @@
             font-size: 0.9rem;
             cursor: pointer;
         }
-        button:active {
+        button:active, #micButton:active {
             background-color: #1289c8;
         }
+
+        /* Mic Button */
+        #micButton {
+            background-color: transparent;
+            border: none;
+        }
+
+        #micIcon {
+            width: 25px;
+        }
+
     </style>
 </head>
 <body>
@@ -101,6 +112,10 @@
 <div class="input-area" style="display: none;" id="inputArea">
     <input type="text" id="question" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
     <button onclick="sendQuestion()">Send</button>
+    <button id="micButton" onclick="toggleRecognition()">
+        <img id="micIcon" src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Speaker_Icon.svg/512px-Speaker_Icon.svg.png" alt="Mic">
+    </button>
+
 </div>
 
 <script>
@@ -115,6 +130,15 @@
     let audioQueue = [];  // Queue for audio chunks
     let isPlaying = false;  // Flag to indicate if audio is currently playing
     let accumulatedChunks = [];  // Temporary storage for accumulating chunks
+    
+    let final_transcript = '';
+    let recognizing = false;
+    let shouldRestart = false;
+    let recognition;
+    let inactivityTimeout;  // Timer für Inaktivität
+    let sentenceCommitted = false; // Flag, ob Satz finalisiert wurde
+    const inactivityTime = 1500; // Zeit in Millisekunden bis Satz abgeschlossen wird
+
 
     const chatContainer = document.getElementById("chatContainer");
     const inputArea = document.getElementById("inputArea");
@@ -290,6 +314,97 @@
         accumulatedChunks = [];
         audioQueue = [];
         isPlaying = false;
+    }
+
+
+    function toggleRecognition() {
+      if (recognizing) {
+        shouldRestart = false; // Nutzer will manuell stoppen, also kein Neustart
+        recognition.stop();
+        clearTimeout(inactivityTimeout); // Stoppt den Timer
+        console.log("Spracherkennung gestoppt");
+      } else {
+        final_transcript = '';
+        recognition.start();
+        shouldRestart = true; // Setze, damit wir wissen, dass wir neu starten wollen
+        console.log("Spracherkennung gestartet");
+      }
+    }
+
+
+
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Web Speech API wird von diesem Browser nicht unterstützt. Bitte verwenden Sie Chrome oder einen kompatiblen Browser.");
+    } else {
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'de-DE'; // Festgelegte Sprache: Deutsch
+
+      recognition.onstart = function() {
+        recognizing = true;
+      };
+
+      recognition.onerror = function(event) {
+        if (event.error === 'no-speech') {
+          console.warn("Kein Sprachsignal erkannt. Versuche erneut zu starten.");
+        } else if (event.error === 'audio-capture') {
+          alert("Kein Mikrofon gefunden. Bitte Mikrofoneinstellungen prüfen.");
+        } else if (event.error === 'not-allowed') {
+          alert("Mikrofonzugriff verweigert.");
+          shouldRestart = false; // Nicht neustarten, wenn Zugriff verweigert wurde
+        }
+      };
+
+      recognition.onend = function() {
+        recognizing = false;
+        if (shouldRestart) {
+          console.log("Spracherkennung wurde beendet, wird neu gestartet...");
+          recognition.start(); // Neustart
+        }
+      };
+
+      recognition.onresult = function(event) {
+        clearTimeout(inactivityTimeout); // Zurücksetzen des Inaktivitäts-Timers
+        let interim_transcript = '';
+
+        // Wenn ein neuer Satz beginnt und der vorherige finalisiert war, alles löschen
+        if (sentenceCommitted) {
+          final_transcript = ''; // Reset finaler Text
+          sentenceCommitted = false; // Flag zurücksetzen
+        }
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            // Satz durch `isFinal` beenden, wenn erkannt
+            finalizeSentence(event.results[i][0].transcript);
+            return; // Beendet die Verarbeitung, wenn `isFinal` gewonnen hat
+          } else {
+            interim_transcript += event.results[i][0].transcript;
+          }
+        }
+
+        inputArea.value = interim_transcript;
+        
+        // Inaktivitäts-Timer neu starten
+        inactivityTimeout = setTimeout(() => {
+          finalizeSentence(interim_transcript); // Wenn der Timer gewinnt
+        }, inactivityTime);
+      };
+    }
+
+    function finalizeSentence(text) {
+      // Einen Punkt hinzufügen und den Satz beenden
+      final_transcript = final_transcript.trim() + ' ' + text.trim() + '.';
+      inputArea.value = final_transcript;
+      sentenceCommitted = true; // Satz wurde finalisiert
+
+      // TTS aufrufen, um den finalisierten Satz vorzulesen
+      sendQuestion();
+
+      // Die Spracherkennung anhalten und neu starten
+      recognition.stop();
+      shouldRestart = true; // Erlaube Neustart nach Stop
     }
 </script>
 
