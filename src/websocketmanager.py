@@ -2,7 +2,7 @@ import asyncio
 from fastapi import WebSocket
 from typing import Dict
 from queue import Queue, Empty
-
+import time
 from starlette.websockets import WebSocketState
 
 class WebSocketManager:
@@ -49,7 +49,10 @@ class WebSocketManager:
         """Adds a binary message to the binary queue to be processed asynchronously."""
         if token in WebSocketManager.binary_message_queues:
             print("+", end = "")
-            WebSocketManager.binary_message_queues[token].put(data)  # Thread-safe enqueue for binary
+            WebSocketManager.binary_message_queues[token].put(data)
+            # allow other thread to read form the queue. IF this sleep is not in, then the 
+            # writer blocks everything. The writer is sometimes too fast and the read has noc chance to get something.
+            time.sleep(0.01)
 
 
     @staticmethod

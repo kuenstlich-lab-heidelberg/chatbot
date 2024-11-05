@@ -3,27 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Chat Interface</title>
+    <title>Chat Interface</title>
     <style>
+        /* Basic Layout */
         body {
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             margin-top: 50px;
+            background-color: #f0f0f5;
         }
-        textarea, input {
+
+        /* Chat Container */
+        .chat-container {
             width: 80%;
             max-width: 600px;
-            margin: 10px 0;
-            display: none; /* Hide initially */
+            height: 60vh;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column-reverse; /* New messages at bottom */
+            overflow-y: auto;
+            background-color: #ffffff;
         }
-        textarea {
-            height: 200px;
-            resize: none;
+
+        /* Message Bubbles */
+        .message {
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 15px;
+            margin: 8px 0;
+            max-width: 70%;
+            word-wrap: break-word;
+            font-size: 0.9rem;
         }
+        
+        /* User Message Bubble */
+        .message.user {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+            color: #303030;
+        }
+
+        /* Bot Message Bubble */
+        .message.bot {
+            background-color: #f1f0f0;
+            align-self: flex-start;
+            color: #606060;
+        }
+
+        /* Input Area */
+        .input-area {
+            width: 80%;
+            max-width: 600px;
+            display: flex;
+            margin-top: 10px;
+        }
+
+        /* Text Input */
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+        }
+
+        /* Buttons */
         button {
-            padding: 10px 20px;
+            padding: 0 15px;
+            margin-left: 8px;
+            border-radius: 20px;
+            border: none;
+            background-color: #34b7f1;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        button:active {
+            background-color: #1289c8;
         }
     </style>
 </head>
@@ -31,9 +91,17 @@
 
 <h2>Chat Interface</h2>
 
-<textarea id="response" placeholder="Response will appear here..." readonly></textarea>
-<input type="text" id="question" placeholder="Enter your question here..." onkeypress="handleKeyPress(event)" />
+<!-- Chat container where messages are displayed -->
+<div class="chat-container" id="chatContainer"></div>
+
+<!-- Start Game Button to initialize WebSocket and start the game -->
 <button id="startButton" onclick="startGame()">Start Game</button>
+
+<!-- Input area for user messages -->
+<div class="input-area" style="display: none;" id="inputArea">
+    <input type="text" id="question" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+    <button onclick="sendQuestion()">Send</button>
+</div>
 
 <script>
     let websocket = null;
@@ -48,6 +116,9 @@
     let isPlaying = false;  // Flag to indicate if audio is currently playing
     let accumulatedChunks = [];  // Temporary storage for accumulating chunks
 
+    const chatContainer = document.getElementById("chatContainer");
+    const inputArea = document.getElementById("inputArea");
+    const startButton = document.getElementById("startButton");
 
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
@@ -56,62 +127,30 @@
         }
     }
 
-    async function toggleChatUI(show) {
-        document.getElementById("response").style.display = show ? "block" : "none";
-        document.getElementById("question").style.display = show ? "block" : "none";
-        document.getElementById("startButton").style.display = show ? "none" : "block";
-
-        try {
-            const responseTextarea = document.getElementById("response");
-            document.getElementById("question").focus();
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ text: "start" })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            responseTextarea.value += `${data.response}\n\n`;
-
-            } catch (error) {
-                console.error("Error starting game:", error);
-                responseTextarea.value += "Error starting game.\n";
-            }
-    }
-
     async function sendQuestion() {
         const questionInput = document.getElementById("question");
-        const responseTextarea = document.getElementById("response");
-        const question = questionInput.value;
+        const userMessage = questionInput.value.trim();
         questionInput.value = "";
 
-        try {
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ text: question })
-            });
+        if (userMessage) {
+            addMessage(userMessage, "user");
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: userMessage })
+                });
 
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
+                if (!response.ok) throw new Error(`Server error: ${response.status}`);
+
+                const data = await response.json();
+                addMessage(data.response, "bot");
+            } catch (error) {
+                console.error("Error:", error);
+                addMessage("Error connecting to server.", "bot");
             }
-
-            const data = await response.json();
-            responseTextarea.value = `${data.response}\n\n`;
-        } catch (error) {
-            console.error("Error:", error);
-            responseTextarea.value += "Error connecting to server.\n";
         }
     }
-
 
     async function startGame() {
         try {
@@ -148,39 +187,63 @@
                         console.error("Error parsing text message:", error);
                     }
                 } else if (event.data instanceof Blob) {
-                    // Convert Blob to ArrayBuffer and interpret as PCM data
                     const arrayBuffer = await event.data.arrayBuffer();
                     enqueueChunk(arrayBuffer);
                 }
             };
 
-            websocket.onerror = (error) => {
-                console.error("WebSocket error:", error);
-            };
-
-            websocket.onclose = () => {
-                if (reconnectAttempts < maxReconnectAttempts) {
-                    document.getElementById("response").value += "WebSocket disconnected. Reconnecting...\n";
-                    setTimeout(() => {
-                        reconnectAttempts++;
-                        initializeWebSocket();
-                    }, 5000);
-                } else {
-                    document.getElementById("response").value += "Unable to reconnect WebSocket.\n";
-                }
-            };
+            websocket.onerror = (error) => console.error("WebSocket error:", error);
+            websocket.onclose = () => reconnectWebSocket();
         } catch (error) {
             console.error("Error initializing WebSocket:", error);
         }
     }
 
+    async function toggleChatUI(show) {
+        inputArea.style.display = show ? "flex" : "none";
+        startButton.style.display = show ? "none" : "block";
+
+        try {
+            inputArea.focus();
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: "start" })
+            });
+
+            const data = await response.json();
+            addMessage(data.response, "bot");
+        } catch (error) {
+            console.error("Error starting game:", error);
+            responseTextarea.value += "Error starting game.\n";
+        }
+    }
+
+    function reconnectWebSocket() {
+        if (reconnectAttempts < maxReconnectAttempts) {
+            setTimeout(() => {
+                reconnectAttempts++;
+                startGame();
+            }, 5000);
+        } else {
+            addMessage("Unable to reconnect WebSocket.", "bot");
+        }
+    }
+
+    function addMessage(text, sender) {
+        const messageBubble = document.createElement("div");
+        messageBubble.classList.add("message", sender);
+        messageBubble.textContent = text;
+        chatContainer.insertBefore(messageBubble, chatContainer.firstChild);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
     function enqueueChunk(arrayBuffer) {
         accumulatedChunks.push(new Int16Array(arrayBuffer));
 
-        // Start playback if not already playing
-        if (!isPlaying) {
-            playNextInQueue();
-        }
+        if (!isPlaying) playNextInQueue();
     }
 
     function playNextInQueue() {
@@ -210,22 +273,20 @@
         source.buffer = audioBuffer;
         source.connect(audioContext.destination);
 
-        source.playbackRate.value = 1.08;  // Adjust if needed
+        source.playbackRate.value = 1.08;
         source.onended = playNextInQueue;
         source.start();
 
-        currentSource = source;  // Store the reference to stop it if needed
+        currentSource = source;
         isPlaying = true;
     }
 
     function stopPlayback() {
-        // Stop the currently playing source if it exists
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
         }
 
-        // Clear the queue and reset state
         accumulatedChunks = [];
         audioQueue = [];
         isPlaying = false;

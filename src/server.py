@@ -167,19 +167,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
     except WebSocketDisconnect:
         print("WebSocket disconnected")
         await WebSocketManager.remove(token)
-
-
-
-@app.websocket("/websocket/{token}")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    await WebSocketManager.connect(websocket, token)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            print(f"Received via WebSocket: {data}")
-    except WebSocketDisconnect:
-        print("WebSocket disconnected")
-        await WebSocketManager.remove(token)
         
 
 if __name__ == "__main__":
