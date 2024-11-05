@@ -23,10 +23,10 @@ class PyAudioSink(BaseAudioSink):
         )
 
 
-    def write(self, chunk):
+    def write(self, session, chunk):
         self.stream.write(chunk)
 
-    def close(self):
+    def close(self, session):
         print("CLOSE SINK")
         if self.stream is not None:
             self.stream.stop_stream()

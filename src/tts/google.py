@@ -9,23 +9,15 @@ from tts.base import BaseTTS
 
 class GoogleTTS(BaseTTS):
     def __init__(self, audio_sink):
-        super().__init__()
-        if audio_sink is None:
-            print("No audio_sink to use")
-            sys.exit(1)
-
+        super().__init__(audio_sink)
         self.sample_rate = 24000  # Google TTS standard sample rate
         self.stop_event = threading.Event()
         self.audio_thread = None
-        self.audio_sink = audio_sink
+
         self.client = tts.TextToSpeechClient()
 
 
-    def speak(self, text):
-        if self.audio_sink is None:
-            print("No audio_sink to use")
-            sys.exit(1)
-        
+    def speak(self, session, text):
         self.stop_event.clear()
         first_part, second_part = self._split_text(text)
 
@@ -42,7 +34,7 @@ class GoogleTTS(BaseTTS):
                         if self.stop_event.is_set():
                             break
                         chunk = audio_data_first[i:i+1024].tobytes()
-                        self.audio_sink.write(chunk)
+                        self.audio_sink.write(session, chunk)
 
                     if future_second and not self.stop_event.is_set():
                         audio_data_second = self._apply_fade_in(future_second.result())
@@ -50,17 +42,17 @@ class GoogleTTS(BaseTTS):
                             if self.stop_event.is_set():
                                 break
                             chunk = audio_data_second[i:i+1024].tobytes()
-                            self.audio_sink.write(chunk)
+                            self.audio_sink.write(session, chunk)
                 except Exception as e:
                     print(f"Error in play_audio_google thread: {e}")
                 finally:
-                    self.stop()
+                    self.stop(session)
 
             self.audio_thread = threading.Thread(target=play_audio_google, daemon=True)
             self.audio_thread.start()
 
 
-    def stop(self):
+    def stop(self, session):
         self.stop_event.set()
 
         try:
@@ -98,6 +90,7 @@ class GoogleTTS(BaseTTS):
         fade = np.linspace(0, 1, num=num_samples)
         audio_data[:num_samples] = (audio_data[:num_samples].astype(float) * fade).astype(np.int16)
         return audio_data
+
 
     def _split_text(self, text):
         # Split text into first sentence and the rest

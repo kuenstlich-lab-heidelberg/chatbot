@@ -4,9 +4,9 @@ class BaseAudioSink(ABC):
 
 
     @abstractmethod
-    def write(self, chunk):
+    def write(self, session, chunk):
         pass
 
     @abstractmethod
-    def close(self):
+    def close(self, session):
         pass

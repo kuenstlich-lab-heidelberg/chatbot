@@ -11,6 +11,6 @@ class LLMFactory:
     def create(cls):
         #return JanLLM()
         return OpenAILLM()
-        #return GeminiLLM(persona)
+        #return GeminiLLM()
         #return GeminiRemoteHistoryLLM(persona)
 

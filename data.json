@@ -2,16 +2,16 @@
     "header": "Current System Status",
     "expression": "neutral",
     "inventory": {
-        "state": "Bibliothek",
-        "has_letter_opend": false,
-        "key_for_room_2": false,
-        "sit_on_tree": false,
-        "has_letter": false,
-        "kerze_an": false,
-        "window_is_open": true,
-        "kerze": false,
-        "coins": 0,
+        "state": "LetterBox",
+        "has_letter_opend": true,
         "streichhoelzer": false,
-        "key_for_front_door": false
+        "sit_on_tree": false,
+        "coins": 0,
+        "key_for_room_2": false,
+        "kerze": false,
+        "has_letter": true,
+        "window_is_open": false,
+        "key_for_front_door": false,
+        "kerze_an": false
     }
 }

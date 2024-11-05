@@ -1,6 +1,7 @@
 import yaml
 import os
 import unicodedata
+import asyncio
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -22,7 +23,7 @@ class StateEngine:
         self.model = None
 
         self._load()
-        self._start_file_watcher()
+        #self._start_file_watcher()
 
 
     def _load(self):
@@ -124,19 +125,20 @@ class StateEngine:
 
             if self.session.last_state != current_state:
                 self.session.llm.system(metadata_state.get('system_prompt'))
-                self.session.jukebox.stop_all()
+                self.session.jukebox.stop_all(self.session)
                 value = metadata_state.get("ambient_sound")
                 if value and value.strip():
-                    self.session.jukebox.play_sound(value)
+                    self.session.jukebox.play_sound(self.session, value)
 
             if self.session.last_action != action:
                 self.session.llm.system(metadata_action.get('system_prompt'))
                 value = metadata_action.get("sound_effect")
                 if value and value.strip():
-                    self.session.jukebox.play_sound(value, False)
+                    self.session.jukebox.play_sound(self.session, value, False)
 
             self.session.last_action = action
             self.session.last_state = current_state
+        
         return callback
 
 

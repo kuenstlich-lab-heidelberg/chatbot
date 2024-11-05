@@ -1,19 +1,20 @@
 from tts.base import BaseTTS
-import pyaudio
+
 import threading
 import time
 from openai import OpenAI
 
 class OpenAiTTS(BaseTTS):
     def __init__(self, audio_sink):
-        super().__init__()
+        super().__init__(audio_sink)
         self.stop_event = threading.Event()
         self.player_stream = None
         self.client = OpenAI()
         self.audio_thread = None
         self.max_retries = 3
 
-    def speak(self, text):
+
+    def speak(self, session, text):
         # Ensure any ongoing playback is stopped before starting a new one
         self.stop()
 
@@ -22,13 +23,6 @@ class OpenAiTTS(BaseTTS):
 
         def play_audio():
             try:
-                # Initialize and open the audio stream
-                self.player_stream = pyaudio.PyAudio().open(
-                    format=pyaudio.paInt16,
-                    channels=1,
-                    rate=24000,
-                    output=True
-                )
 
                 # Attempt to stream audio with retries
                 retries = 0
@@ -45,7 +39,7 @@ class OpenAiTTS(BaseTTS):
                                 # Stop playback if stop_event is set
                                 if self.stop_event.is_set():
                                     break
-                                self.player_stream.write(chunk)
+                                self.audio_sink.write(session, chunk)
                         break  # Exit loop if streaming succeeds
                     except (ConnectionError, TimeoutError) as e:
                         retries += 1
@@ -56,17 +50,13 @@ class OpenAiTTS(BaseTTS):
                         break
             except Exception as e:
                 print(f"Error in play_audio thread: {e}")
-            finally:
-                # Ensure the audio stream is closed in any case
-                self._close_stream()
-
 
         # Start the playback in a separate thread
         self.audio_thread = threading.Thread(target=play_audio)
         self.audio_thread.start()
 
 
-    def stop(self):
+    def stop(self, session):
         try:
             # Set the stop event to signal the playback thread to stop
             self.stop_event.set()
@@ -78,19 +68,4 @@ class OpenAiTTS(BaseTTS):
             self.audio_thread = None
         except Exception as e:
             print(f"Error in stop method: {e}")
-        finally:
-            # Ensure the audio stream is closed in case it wasn't already
-            self._close_stream()
 
-
-    def _close_stream(self):
-        """Helper method to safely close the audio stream."""
-        if self.player_stream is not None:
-            try:
-                self.player_stream.stop_stream()
-                self.player_stream.close()
-                #print("Player stream closed successfully.")
-            except Exception as e:
-                print(f"Error while closing the stream: {e}")
-            finally:
-                self.player_stream = None

@@ -8,33 +8,32 @@ load_dotenv()
 from motorcontroller.mock import MotorControlerMock
 
 from state_engine import StateEngine
-from audio.factory import AudioSinkFactory
 from tts.factory import TTSEngineFactory
 from llm.factory import LLMFactory
 from stt.factory import STTFactory
 from session import Session
+from sound.local_jukebox import LocalJukebox
+from audio.pyaudio import PyAudioSink
 
+debug_ui = MotorControlerMock()
 
-controller = MotorControlerMock()
 conversation_dir = "/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/"
 conversation_file = "zork.yaml"
 
-allowed_expressions = ["friendly smile", "thoughtful nod", "surprised look", "serious expression"]
 stop_requested = False
 
 
 def stop():
     global stop_requested
-    stop_requested = True
     print("\nStopping gracefully...")
-    controller.stop()
+    stop_requested = True
+    debug_ui.stop()
     sys.exit(0)
 signal.signal(signal.SIGINT, lambda sig, frame: stop())
 
 
 
 if __name__ == '__main__':
-
 
     def process_text(session, text):
 
@@ -53,8 +52,8 @@ if __name__ == '__main__':
             if action:
                 done = session.state_engine.trigger(session, action)
                 if done:
-                    controller.set(response["expressions"], session.state_engine.get_inventory() )
-                    session.tts.speak(response["text"])
+                    debug_ui.set(response["expressions"], session.state_engine.get_inventory() )
+                    session.tts.speak(session, response["text"])
                     session.llm.system(session.state_engine.get_action_system_prompt(action))
                 else:
                     # generate a negative answer to the last tried transition
@@ -66,19 +65,20 @@ if __name__ == '__main__':
 
                     """+session.state_engine.last_transition_error
                     response = session.llm.chat(session, text)
-                    controller.set(response["expressions"], session.state_engine.get_inventory() )
-                    session.tts.speak(response["text"])
+                    debug_ui.set(response["expressions"], session.state_engine.get_inventory() )
+                    session.tts.speak(session, response["text"])
             else:
-                controller.set(response["expressions"], session.state_engine.get_inventory() )
-                session.tts.speak(response["text"])
+                debug_ui.set(response["expressions"], session.state_engine.get_inventory() )
+                session.tts.speak(session, response["text"])
 
 
     session = Session(
         conversation_dir = conversation_dir,
         state_engine=StateEngine(f"{conversation_dir}{conversation_file}"),
         llm = LLMFactory.create(),
-        tts = TTSEngineFactory.create(AudioSinkFactory.create()),
-        stt = STTFactory.create()
+        tts = TTSEngineFactory.create(PyAudioSink()),
+        stt = STTFactory.create(),
+        jukebox = LocalJukebox()
     )
 
     # Start the game for this new session
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     
     # show the current status of the game
     #
-    controller.set([], session.state_engine.get_inventory())
+    debug_ui.set([], session.state_engine.get_inventory())
 
     try:
         for text in session.stt.start_recording():

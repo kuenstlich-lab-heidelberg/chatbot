@@ -16,6 +16,7 @@
             width: 80%;
             max-width: 600px;
             margin: 10px 0;
+            display: none; /* Hide initially */
         }
         textarea {
             height: 200px;
@@ -31,42 +32,204 @@
 <h2>Chat Interface</h2>
 
 <textarea id="response" placeholder="Response will appear here..." readonly></textarea>
-
-<input type="text" id="question" placeholder="Enter your question here..." />
-
-<button onclick="sendQuestion()">Send</button>
+<input type="text" id="question" placeholder="Enter your question here..." onkeypress="handleKeyPress(event)" />
+<button id="startButton" onclick="startGame()">Start Game</button>
 
 <script>
-async function sendQuestion() {
-    const questionInput = document.getElementById("question");
-    const responseTextarea = document.getElementById("response");
-    const question = questionInput.value;
+    let websocket = null;
+    let token = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    let audioContext = null;
+    let audioPlayers = {};
+    let currentSource = null;  // Reference to the current AudioBufferSourceNode
 
-    questionInput.value = "";
+    let audioQueue = [];  // Queue for audio chunks
+    let isPlaying = false;  // Flag to indicate if audio is currently playing
+    let accumulatedChunks = [];  // Temporary storage for accumulating chunks
 
-    try {
-        console.log("Sending question:", question);  // Debug log
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ text: question })
-        });
 
-        if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            sendQuestion();
+        }
+    }
+
+    async function toggleChatUI(show) {
+        document.getElementById("response").style.display = show ? "block" : "none";
+        document.getElementById("question").style.display = show ? "block" : "none";
+        document.getElementById("startButton").style.display = show ? "none" : "block";
+
+        try {
+            const responseTextarea = document.getElementById("response");
+            document.getElementById("question").focus();
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: "start" })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            responseTextarea.value += `${data.response}\n\n`;
+
+            } catch (error) {
+                console.error("Error starting game:", error);
+                responseTextarea.value += "Error starting game.\n";
+            }
+    }
+
+    async function sendQuestion() {
+        const questionInput = document.getElementById("question");
+        const responseTextarea = document.getElementById("response");
+        const question = questionInput.value;
+        questionInput.value = "";
+
+        try {
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ text: question })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            responseTextarea.value = `${data.response}\n\n`;
+        } catch (error) {
+            console.error("Error:", error);
+            responseTextarea.value += "Error connecting to server.\n";
+        }
+    }
+
+
+    async function startGame() {
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const response = await fetch("/websocket/connect");
+            const data = await response.json();
+            token = data.token;
+
+            const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+            const wsUrl = `${wsProtocol}${window.location.host}/websocket/${token}`;
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = () => {
+                reconnectAttempts = 0;
+                toggleChatUI(true);
+            };
+
+            websocket.onmessage = async (event) => {
+                if (typeof event.data === "string") {
+                    try {
+                        const message = JSON.parse(event.data);
+                        console.log(message)
+                        if (message.function === "sound.play_sound") {
+                            const soundUrl = `${window.location.protocol}//${window.location.host}/api/audio/${message.file_name}`;
+                            const audio = new Audio(soundUrl);
+                            audio.loop = message.loop;
+                            audioPlayers[message.file_name] = audio;
+                            audio.play().catch(error => console.error("Error playing audio:", error));
+                        }
+                        else if(message.function === "speak.stop"){
+                            stopPlayback();
+                        }
+                    } catch (error) {
+                        console.error("Error parsing text message:", error);
+                    }
+                } else if (event.data instanceof Blob) {
+                    // Convert Blob to ArrayBuffer and interpret as PCM data
+                    const arrayBuffer = await event.data.arrayBuffer();
+                    enqueueChunk(arrayBuffer);
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error("WebSocket error:", error);
+            };
+
+            websocket.onclose = () => {
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    document.getElementById("response").value += "WebSocket disconnected. Reconnecting...\n";
+                    setTimeout(() => {
+                        reconnectAttempts++;
+                        initializeWebSocket();
+                    }, 5000);
+                } else {
+                    document.getElementById("response").value += "Unable to reconnect WebSocket.\n";
+                }
+            };
+        } catch (error) {
+            console.error("Error initializing WebSocket:", error);
+        }
+    }
+
+    function enqueueChunk(arrayBuffer) {
+        accumulatedChunks.push(new Int16Array(arrayBuffer));
+
+        // Start playback if not already playing
+        if (!isPlaying) {
+            playNextInQueue();
+        }
+    }
+
+    function playNextInQueue() {
+        if (accumulatedChunks.length === 0) {
+            isPlaying = false;
+            return;
         }
 
-        const data = await response.json();
-        console.log("Received response:", data);  // Debug log
-        responseTextarea.value += `You: ${question}\nResponse: ${data.response}\n\n`;
-    } catch (error) {
-        console.error("Error:", error);
-        responseTextarea.value += "Error connecting to server.\n";
-    }
-}
+        const totalLength = accumulatedChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        const concatenatedData = new Int16Array(totalLength);
+        let offset = 0;
+        for (const chunk of accumulatedChunks) {
+            concatenatedData.set(chunk, offset);
+            offset += chunk.length;
+        }
 
+        accumulatedChunks = [];
+
+        const sampleRate = 24000;
+        const audioBuffer = audioContext.createBuffer(1, concatenatedData.length, sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+        for (let i = 0; i < concatenatedData.length; i++) {
+            channelData[i] = concatenatedData[i] / 32768;
+        }
+
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+
+        source.playbackRate.value = 1.08;  // Adjust if needed
+        source.onended = playNextInQueue;
+        source.start();
+
+        currentSource = source;  // Store the reference to stop it if needed
+        isPlaying = true;
+    }
+
+    function stopPlayback() {
+        // Stop the currently playing source if it exists
+        if (currentSource) {
+            currentSource.stop();
+            currentSource = null;
+        }
+
+        // Clear the queue and reset state
+        accumulatedChunks = [];
+        audioQueue = [];
+        isPlaying = false;
+    }
 </script>
 
 </body>
