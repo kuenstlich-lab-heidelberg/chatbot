@@ -11,7 +11,7 @@ from transitions.extensions import HierarchicalGraphMachine
 from scripting.lua import LuaSandbox
 
 class StateEngine:
-    def __init__(self, yaml_file_path, transition_callback= None):
+    def __init__(self, yaml_file_path):
         # convert relative to absolute file path
         if not os.path.isabs(yaml_file_path):
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,10 +20,6 @@ class StateEngine:
         self.yaml_file_path = yaml_file_path
         self.calculator = LuaSandbox()
         self.model = None
-
-        if transition_callback is None:
-            transition_callback = lambda: None
-        self.transition_callback = transition_callback
 
         self._load()
         self._start_file_watcher()
@@ -117,7 +113,6 @@ class StateEngine:
         """
         def callback( *args, **kwargs):
             #print(f"CALLBACK action: {action}")
-            current_session = self.session
             current_state = self.model.state
             metadata_state = self.state_metadata.get(current_state, {})
             metadata_action = self.action_metadata.get(action, {})
@@ -127,9 +122,23 @@ class StateEngine:
                 if len(code)>0:
                     self.calculator.eval(code)  # Execute each action in the Lua sandbox
 
-            # Call the user-defined transition callback with metadata
-            self.transition_callback(current_session, current_state, metadata_state, action, metadata_action)
+            if self.session.last_state != current_state:
+                self.session.llm.system(metadata_state.get('system_prompt'))
+                self.session.jukebox.stop_all()
+                value = metadata_state.get("ambient_sound")
+                if value and value.strip():
+                    self.session.jukebox.play_sound(value)
+
+            if self.session.last_action != action:
+                self.session.llm.system(metadata_action.get('system_prompt'))
+                value = metadata_action.get("sound_effect")
+                if value and value.strip():
+                    self.session.jukebox.play_sound(value, False)
+
+            self.session.last_action = action
+            self.session.last_state = current_state
         return callback
+
 
     def _create_condition_callback(self, action):
         """

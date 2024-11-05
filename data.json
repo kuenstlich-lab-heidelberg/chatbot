@@ -3,15 +3,15 @@
     "expression": "neutral",
     "inventory": {
         "state": "Bibliothek",
-        "streichhoelzer": false,
         "has_letter_opend": false,
         "key_for_room_2": false,
-        "kerze": false,
-        "key_for_front_door": false,
-        "window_is_open": true,
-        "kerze_an": false,
-        "coins": 0,
         "sit_on_tree": false,
-        "has_letter": false
+        "has_letter": false,
+        "kerze_an": false,
+        "window_is_open": true,
+        "kerze": false,
+        "coins": 0,
+        "streichhoelzer": false,
+        "key_for_front_door": false
     }
 }

@@ -9,19 +9,22 @@ pygame.mixer.init()
 
 
 class Jukebox:
-    def __init__(self):
+    def __init__(self, sound_dir):
+        self.sound_dir= sound_dir
         self.playing_sounds = []
 
-    def play_sound(self, file_path, loop=True):
+    def play_sound(self, file_name, loop=True):
         """
         Play a sound from the given file path.
         :param file_path: Absolute path to the sound file (wav or mp3).
         :param loop: If True, play sound in an infinite loop; otherwise, play once.
         :return: PlayingSound object for controlling this sound.
         """
-        if not file_path or len(file_path)==0:
+        if not file_name or len(file_name)==0:
             return #silently
         
+        file_path = f"{self.sound_dir}{file_name}"
+
         try:
             if not os.path.isabs(file_path):
                 current_dir = os.path.dirname(os.path.abspath(__file__))

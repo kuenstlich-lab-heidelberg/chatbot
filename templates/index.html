@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+        }
+        textarea, input {
+            width: 80%;
+            max-width: 600px;
+            margin: 10px 0;
+        }
+        textarea {
+            height: 200px;
+            resize: none;
+        }
+        button {
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Chat Interface</h2>
+
+<textarea id="response" placeholder="Response will appear here..." readonly></textarea>
+
+<input type="text" id="question" placeholder="Enter your question here..." />
+
+<button onclick="sendQuestion()">Send</button>
+
+<script>
+async function sendQuestion() {
+    const questionInput = document.getElementById("question");
+    const responseTextarea = document.getElementById("response");
+    const question = questionInput.value;
+
+    questionInput.value = "";
+
+    try {
+        console.log("Sending question:", question);  // Debug log
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ text: question })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Received response:", data);  // Debug log
+        responseTextarea.value += `You: ${question}\nResponse: ${data.response}\n\n`;
+    } catch (error) {
+        console.error("Error:", error);
+        responseTextarea.value += "Error connecting to server.\n";
+    }
+}
+
+</script>
+
+</body>
+</html>
