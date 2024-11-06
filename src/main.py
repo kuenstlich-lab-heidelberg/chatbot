@@ -19,6 +19,7 @@ debug_ui = MotorControlerMock()
 
 conversation_dir = "/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/"
 conversation_file = "zork.yaml"
+conversation_file = "fsm.yaml"
 
 stop_requested = False
 
@@ -48,7 +49,7 @@ if __name__ == '__main__':
         if len(text)>0:
             response = session.llm.chat(session,text)
             action = response.get("action") 
-            session.tts.stop()
+            session.tts.stop(session)
             if action:
                 done = session.state_engine.trigger(session, action)
                 if done:

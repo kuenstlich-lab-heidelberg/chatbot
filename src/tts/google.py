@@ -10,10 +10,9 @@ from tts.base import BaseTTS
 class GoogleTTS(BaseTTS):
     def __init__(self, audio_sink):
         super().__init__(audio_sink)
-        self.sample_rate = 24000  # Google TTS standard sample rate
+        self.sample_rate = 24000
         self.stop_event = threading.Event()
         self.audio_thread = None
-
         self.client = tts.TextToSpeechClient()
 
 
@@ -70,6 +69,9 @@ class GoogleTTS(BaseTTS):
 
     def _synthesize_text(self, text):
         """Synthesize text and return audio data."""
+        if not text or len(text)==0:
+            return np.array([], dtype=np.int16) 
+        
         response = self.client.synthesize_speech(
             input=tts.SynthesisInput(text=text),
             voice=tts.VoiceSelectionParams(

@@ -9,7 +9,6 @@ class CoquiTTS(BaseTTS):
         super().__init__(audio_sink)
         self.engine = CoquiEngine(
             language="de",
-            speed=1.2,
             full_sentences=True)
         
         self.stream = TextToAudioStream(

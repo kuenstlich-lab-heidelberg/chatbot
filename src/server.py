@@ -27,7 +27,8 @@ from audio.websocket import WebSocketSink
 
 conversation_dir = "/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/"
 conversation_file = "zork.yaml"
-
+#conversation_file = "fsm_fun.yaml"
+#conversation_file = "fsm_techi.yaml"
 
 debug_ui = MotorControlerMock()
 

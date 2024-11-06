@@ -36,7 +36,6 @@ class OpenAiTTS(BaseTTS):
                             model="tts-1"
                         ) as response:
                             for chunk in response.iter_bytes(chunk_size=8192):
-                                # Stop playback if stop_event is set
                                 if self.stop_event.is_set():
                                     break
                                 self.audio_sink.write(session, chunk)
@@ -51,20 +50,17 @@ class OpenAiTTS(BaseTTS):
             except Exception as e:
                 print(f"Error in play_audio thread: {e}")
 
-        # Start the playback in a separate thread
         self.audio_thread = threading.Thread(target=play_audio)
         self.audio_thread.start()
 
 
     def stop(self, session):
         try:
-            # Set the stop event to signal the playback thread to stop
             self.stop_event.set()
 
             # Wait for the audio thread to finish if it's still running
             if self.audio_thread is not None and self.audio_thread.is_alive():
                 self.audio_thread.join()
-                #print("Audio thread joined successfully.")
             self.audio_thread = None
         except Exception as e:
             print(f"Error in stop method: {e}")

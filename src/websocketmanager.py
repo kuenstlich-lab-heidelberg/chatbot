@@ -48,7 +48,7 @@ class WebSocketManager:
     def send_bytes(token: str, data: bytes) -> None:
         """Adds a binary message to the binary queue to be processed asynchronously."""
         if token in WebSocketManager.binary_message_queues:
-            print("+", end = "")
+            #print("+", end = "")
             WebSocketManager.binary_message_queues[token].put(data)
             # allow other thread to read form the queue. IF this sleep is not in, then the 
             # writer blocks everything. The writer is sometimes too fast and the read has noc chance to get something.
@@ -77,6 +77,6 @@ class WebSocketManager:
                 try:
                     binary_data = binary_queue.get_nowait()  # Non-blocking get for binary messages
                     await websocket.send_bytes(binary_data)
-                    print("-", end="")
+                    #print("-", end="")
                 except Empty:
                     break

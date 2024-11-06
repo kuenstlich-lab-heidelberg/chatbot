@@ -1,12 +1,17 @@
+import os
 import numpy as np
 import threading
 from tts.base import BaseTTS
 from piper.voice import PiperVoice
 
+def get_absolute_path(*relative_parts):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.normpath(os.path.join(base_dir, *relative_parts))
+
 class PiperTTS(BaseTTS):
     def __init__(self, audio_sink):
         super().__init__(audio_sink)
-        self.model = "/Users/D023280/Documents/workspace/künstlich-lab/chat/chatbot/piper_voices/de_DE-thorsten-high.onnx"
+        self.model = get_absolute_path("..", "..", "piper_voices", "de_DE-thorsten-high.onnx")
         self.voice = PiperVoice.load(self.model)
         self.sample_rate = self.voice.config.sample_rate
         self.stop_event = threading.Event()
@@ -36,9 +41,6 @@ class PiperTTS(BaseTTS):
                     self.audio_sink.write(session, audio_data.tobytes())
             except Exception as e:
                 print(f"Error in play_audio thread: {e}")
-            finally:
-                # Close the audio stream as soon as possible after stopping
-                self._close_stream()
 
         # Start the playback in a separate thread
         self.audio_thread = threading.Thread(target=play_audio)
