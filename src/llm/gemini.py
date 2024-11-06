@@ -9,13 +9,12 @@ from llm.base import BaseLLM
 
 # Definition der Klasse OpenAILLM, die von BaseLLM erbt
 class GeminiLLM(BaseLLM):
-    def __init__(self, persona):
+    def __init__(self):
         super().__init__()
         self.max_tokens= 8192
-        self.persona = persona
         self.history = []
-        #self.model_name = "gemini-1.5-flash"      # latest
-        self.model_name = "gemini-1.5-pro"  # stable
+        self.model_name = "gemini-1.5-flash"      # latest
+        #self.model_name = "gemini-1.5-pro"  # stable
         self.generation_config = {
             "temperature": 0.1,
             "top_p": 0.95,
@@ -53,7 +52,7 @@ class GeminiLLM(BaseLLM):
             print("Warning: No system instruction provided.")
 
 
-    def chat(self, user_input, allowed_expressions=[]):
+    def chat(self, session, user_input):
         if not user_input:
             print("Error: No user input provided.")
             return {"text": "No input provided.", "expressions": [], "action": None}
@@ -64,14 +63,14 @@ class GeminiLLM(BaseLLM):
                 function_declarations=[
                     genai.protos.FunctionDeclaration(
                         name=action,
-                        description=self.persona.get_action_description(action),
+                        description=session.state_engine.get_action_description(action),
                         parameters=None
                     )
                 ]
             )
-            for action in self.persona.get_possible_actions()
+            for action in session.state_engine.get_possible_actions()
         ]
-        print(json.dumps(self.persona.get_possible_actions(), indent=4))
+        print(json.dumps(session.state_engine.get_possible_actions(), indent=4))
 
         possible_actions_instruction = re.sub(r"\s+", " ", f"""
             Im Hintergrund wähle ich je nach Gesprächskontext oder auf expliziten Wunsch des Benutzers die 
@@ -88,7 +87,7 @@ class GeminiLLM(BaseLLM):
   
         # Erster Modellaufruf mit "function_calling_config" auf "ANY" um zu versuchen "action" und "text" zu bekommen
         #
-        result = self._get_response_with_config(user_input, tools, possible_actions_instruction, function_calling_config="ANY")
+        result = self._get_response_with_config(session, user_input, tools, possible_actions_instruction, function_calling_config="ANY")
         action = result["action"]
 
         # Falls Gemini nur "action" geliefert hat, dann starten wir einen zweiten Aufruf um uns nur eine "text" Antwort abzuholen.
@@ -96,7 +95,7 @@ class GeminiLLM(BaseLLM):
         #
         if result["text"] is None:
             print("No text response; retrying with function_calling_config set to 'NONE'.")
-            if action in self.persona.get_possible_actions():
+            if action in session.state_engine.get_possible_actions():
                 self.system(re.sub(r"\s+", " ",f""" (Hinweis: Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
                     Achte bitte darauf, dass du so Antwortest, als ob die Aktion erfolgreich war und du 
                     diese ausgeführt hast. Egal welche anderen Annahmen du triffst. Diese information NIEMALS 
@@ -105,7 +104,7 @@ class GeminiLLM(BaseLLM):
             else:
                 result["action"] = None
 
-            second_result = self._get_response_with_config(user_input, tools, possible_actions_instruction, function_calling_config="NONE")
+            second_result = self._get_response_with_config(session, user_input, tools, possible_actions_instruction, function_calling_config="NONE")
 
             # Merging der Antworten
             result["text"] = second_result["text"] if result["text"] is None else result["text"]
@@ -144,7 +143,7 @@ class GeminiLLM(BaseLLM):
             self.history.append({"role": role, "parts": [message]})
 
 
-    def _get_response_with_config(self, user_input, tools, instruction, function_calling_config):
+    def _get_response_with_config(self, session, user_input, tools, instruction, function_calling_config):
         max_retries = 2
         attempt = 0
         
@@ -153,7 +152,7 @@ class GeminiLLM(BaseLLM):
                 model = genai.GenerativeModel(
                     model_name=self.model_name,
                     generation_config=self.generation_config,
-                    system_instruction=f"{self.persona.get_global_system_prompt()}. {instruction}",
+                    system_instruction=f"{session.state_engine.get_global_system_prompt()}. {instruction}",
                     tools=tools,
                     safety_settings={
                         'HATE': 'BLOCK_NONE',

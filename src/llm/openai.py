@@ -83,6 +83,8 @@ class OpenAILLM(BaseLLM):
         response = self._call_openai_model(session)
         if (response["text"] is None or response["text"].strip() == "") and response["action"]:
             response = self._retry_for_text(session, response)
+        response["text"] =  response["text"].replace("Was möchtest du als nächstes tun?", "")
+
         self._add_to_history("assistant", response["text"])
         print(json.dumps(response, indent=4))
         return response

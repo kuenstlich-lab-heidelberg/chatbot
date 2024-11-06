@@ -131,6 +131,7 @@ async def chat(request: Request, data: ChatMessage, response: Response):
 
     WebSocketManager.send_message(token, json.dumps({"function":"speak.stop"}))
     session.tts.speak(session, response_text)
+    debug_ui.set([], session.state_engine.get_inventory())
 
     return JSONResponse({"response": response_text})
 

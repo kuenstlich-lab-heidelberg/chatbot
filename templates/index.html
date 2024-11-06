@@ -86,6 +86,11 @@
             background-color: #1289c8;
         }
 
+        /* Mic Button Active Style */
+        #micButton.active {
+            background-color: #ff4d4d;
+        }
+
         /* Mic Button */
         #micButton {
             background-color: transparent;
@@ -111,7 +116,6 @@
 <!-- Input area for user messages -->
 <div class="input-area" style="display: none;" id="inputArea">
     <input type="text" id="question" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
-    <button onclick="sendQuestion()">Send</button>
     <button id="micButton" onclick="toggleRecognition()">
         <img id="micIcon" src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Speaker_Icon.svg/512px-Speaker_Icon.svg.png" alt="Mic">
     </button>
@@ -119,6 +123,7 @@
 </div>
 
 <script>
+ 
     let websocket = null;
     let token = null;
     let reconnectAttempts = 0;
@@ -126,6 +131,7 @@
     let audioContext = null;
     let audioPlayers = {};
     let currentSource = null;  // Reference to the current AudioBufferSourceNode
+
 
     let audioQueue = [];  // Queue for audio chunks
     let isPlaying = false;  // Flag to indicate if audio is currently playing
@@ -135,14 +141,15 @@
     let recognizing = false;
     let shouldRestart = false;
     let recognition;
-    let inactivityTimeout;  // Timer für Inaktivität
-    let sentenceCommitted = false; // Flag, ob Satz finalisiert wurde
-    const inactivityTime = 1500; // Zeit in Millisekunden bis Satz abgeschlossen wird
-
+    let inactivityTimeout;  // Timer for inactivity
+    const inactivityTime = 800;
 
     const chatContainer = document.getElementById("chatContainer");
     const inputArea = document.getElementById("inputArea");
     const startButton = document.getElementById("startButton");
+    const questionInput = document.getElementById("question");
+    const micButton = document.getElementById("micButton");
+
 
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
@@ -152,7 +159,6 @@
     }
 
     async function sendQuestion() {
-        const questionInput = document.getElementById("question");
         const userMessage = questionInput.value.trim();
         questionInput.value = "";
 
@@ -175,6 +181,7 @@
             }
         }
     }
+
 
     async function startGame() {
         try {
@@ -204,8 +211,11 @@
                             audioPlayers[message.file_name] = audio;
                             audio.play().catch(error => console.error("Error playing audio:", error));
                         }
+                        else if (message.function === "sound.stop_all") {
+                            stopAllSounds();
+                        }
                         else if(message.function === "speak.stop"){
-                            stopPlayback();
+                            stopSpeak();
                         }
                     } catch (error) {
                         console.error("Error parsing text message:", error);
@@ -221,6 +231,18 @@
         } catch (error) {
             console.error("Error initializing WebSocket:", error);
         }
+    }
+
+    // Function to stop all currently playing sound effects
+    function stopAllSounds() {
+        for (const fileName in audioPlayers) {
+            const audio = audioPlayers[fileName];
+            audio.pause();
+            audio.currentTime = 0;
+        
+            delete audioPlayers[fileName];
+        }
+        console.log("All sound effects stopped.");
     }
 
     async function toggleChatUI(show) {
@@ -266,7 +288,6 @@
 
     function enqueueChunk(arrayBuffer) {
         accumulatedChunks.push(new Int16Array(arrayBuffer));
-
         if (!isPlaying) playNextInQueue();
     }
 
@@ -305,107 +326,91 @@
         isPlaying = true;
     }
 
-    function stopPlayback() {
-        if (currentSource) {
-            currentSource.stop();
-            currentSource = null;
-        }
-
+    function stopSpeak() {
+        console.log("stopSpeak")
         accumulatedChunks = [];
         audioQueue = [];
         isPlaying = false;
+
+        if (currentSource) {
+            currentSource.onended = null;
+            currentSource.stop();
+            currentSource = null;
+        }
     }
-
-
-    function toggleRecognition() {
-      if (recognizing) {
-        shouldRestart = false; // Nutzer will manuell stoppen, also kein Neustart
-        recognition.stop();
-        clearTimeout(inactivityTimeout); // Stoppt den Timer
-        console.log("Spracherkennung gestoppt");
-      } else {
-        final_transcript = '';
-        recognition.start();
-        shouldRestart = true; // Setze, damit wir wissen, dass wir neu starten wollen
-        console.log("Spracherkennung gestartet");
-      }
-    }
-
-
 
     if (!('webkitSpeechRecognition' in window)) {
-      alert("Web Speech API wird von diesem Browser nicht unterstützt. Bitte verwenden Sie Chrome oder einen kompatiblen Browser.");
+        alert("Web Speech API is not supported by this browser. Please use Chrome.");
     } else {
-      recognition = new webkitSpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'de-DE'; // Festgelegte Sprache: Deutsch
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'de-DE';
 
-      recognition.onstart = function() {
-        recognizing = true;
-      };
+        recognition.onstart = function() {
+            recognizing = true;
+            micButton.classList.add("active"); // Set mic button to active state
+        };
 
-      recognition.onerror = function(event) {
-        if (event.error === 'no-speech') {
-          console.warn("Kein Sprachsignal erkannt. Versuche erneut zu starten.");
-        } else if (event.error === 'audio-capture') {
-          alert("Kein Mikrofon gefunden. Bitte Mikrofoneinstellungen prüfen.");
-        } else if (event.error === 'not-allowed') {
-          alert("Mikrofonzugriff verweigert.");
-          shouldRestart = false; // Nicht neustarten, wenn Zugriff verweigert wurde
-        }
-      };
+        recognition.onerror = function(event) {
+            if (event.error === 'no-speech') {
+                console.warn("No speech detected. Trying again.");
+            } else if (event.error === 'audio-capture') {
+                alert("No microphone found. Please check microphone settings.");
+            } else if (event.error === 'not-allowed') {
+                alert("Microphone access denied.");
+                shouldRestart = false;
+            }
+        };
 
-      recognition.onend = function() {
-        recognizing = false;
-        if (shouldRestart) {
-          console.log("Spracherkennung wurde beendet, wird neu gestartet...");
-          recognition.start(); // Neustart
-        }
-      };
+        recognition.onend = function() {
+            recognizing = false;
+            micButton.classList.remove("active"); // Remove active state from mic button
+            if (shouldRestart) {
+                recognition.start();
+            }
+        };
 
-      recognition.onresult = function(event) {
-        clearTimeout(inactivityTimeout); // Zurücksetzen des Inaktivitäts-Timers
-        let interim_transcript = '';
+        recognition.onresult = function(event) {
+            clearTimeout(inactivityTimeout); // Reset inactivity timer
+            let interim_transcript = '';
 
-        // Wenn ein neuer Satz beginnt und der vorherige finalisiert war, alles löschen
-        if (sentenceCommitted) {
-          final_transcript = ''; // Reset finaler Text
-          sentenceCommitted = false; // Flag zurücksetzen
-        }
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    final_transcript += event.results[i][0].transcript;
+                } else {
+                    interim_transcript += event.results[i][0].transcript;
+                }
+            }
+            questionInput.value = final_transcript + " " + interim_transcript;
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            // Satz durch `isFinal` beenden, wenn erkannt
-            finalizeSentence(event.results[i][0].transcript);
-            return; // Beendet die Verarbeitung, wenn `isFinal` gewonnen hat
-          } else {
-            interim_transcript += event.results[i][0].transcript;
-          }
-        }
-
-        inputArea.value = interim_transcript;
-        
-        // Inaktivitäts-Timer neu starten
-        inactivityTimeout = setTimeout(() => {
-          finalizeSentence(interim_transcript); // Wenn der Timer gewinnt
-        }, inactivityTime);
-      };
+            inactivityTimeout = setTimeout(() => {
+                if (final_transcript || interim_transcript) {
+                    finalizeSpeech();
+                }
+            }, inactivityTime);
+        };
     }
 
-    function finalizeSentence(text) {
-      // Einen Punkt hinzufügen und den Satz beenden
-      final_transcript = final_transcript.trim() + ' ' + text.trim() + '.';
-      inputArea.value = final_transcript;
-      sentenceCommitted = true; // Satz wurde finalisiert
-
-      // TTS aufrufen, um den finalisierten Satz vorzulesen
-      sendQuestion();
-
-      // Die Spracherkennung anhalten und neu starten
-      recognition.stop();
-      shouldRestart = true; // Erlaube Neustart nach Stop
+    function toggleRecognition() {
+        if (recognizing) {
+            shouldRestart = false;
+            recognition.stop();
+        } else {
+            final_transcript = '';
+            recognition.start();
+            shouldRestart = true;
+        }
     }
+
+    function finalizeSpeech() {
+        questionInput.value = final_transcript.trim();
+        sendQuestion(); // Send final message
+        final_transcript = ''; // Reset transcript for the next speech segment
+        recognition.stop();
+    }
+
+
 </script>
 
 </body>

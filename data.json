@@ -3,15 +3,15 @@
     "expression": "neutral",
     "inventory": {
         "state": "WestOfHouse",
+        "key_for_front_door": false,
+        "sit_on_tree": false,
         "has_letter": false,
         "coins": 0,
-        "streichhoelzer": false,
-        "window_is_open": false,
-        "has_letter_opend": false,
-        "sit_on_tree": false,
-        "kerze_an": false,
         "key_for_room_2": false,
+        "kerze_an": false,
+        "streichhoelzer": false,
         "kerze": false,
-        "key_for_front_door": false
+        "window_is_open": false,
+        "has_letter_opend": false
     }
 }
