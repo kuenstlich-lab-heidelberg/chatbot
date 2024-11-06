@@ -41,16 +41,13 @@ class GeminiLLM(BaseLLM):
         print(json.dumps(self.history, indent=4))
 
 
-    def reset(self):
+    def reset(self, session):
         self.history = []
 
 
     def system(self, system_instruction):
         if system_instruction:
             self._add_to_history(role="model", message=system_instruction.replace(f'\n', ''))
-        else:
-            print("Warning: No system instruction provided.")
-
 
     def chat(self, session, user_input):
         if not user_input:
@@ -87,7 +84,11 @@ class GeminiLLM(BaseLLM):
   
         # Erster Modellaufruf mit "function_calling_config" auf "ANY" um zu versuchen "action" und "text" zu bekommen
         #
-        result = self._get_response_with_config(session, user_input, tools, possible_actions_instruction, function_calling_config="ANY")
+        result = self._get_response_with_config(session, 
+                                                user_input, 
+                                                tools, 
+                                                possible_actions_instruction, 
+                                                function_calling_config="AUTO")
         action = result["action"]
 
         # Falls Gemini nur "action" geliefert hat, dann starten wir einen zweiten Aufruf um uns nur eine "text" Antwort abzuholen.

@@ -22,13 +22,17 @@ def make_serializable(obj):
 
 
 # Definition der Klasse OpenAILLM, die von BaseLLM erbt
-class OpenAILLM(BaseLLM):
+class OllamaLLM(BaseLLM):
     def __init__(self):
         super().__init__()
-        #self.model = "gpt-4"
-        #self.model = "gpt-3.5-turbo"
-        #self.model = "gpt-4o-mini"
-        self.model = "gpt-4o"
+        # Facebook LLM model
+        #self.model = "llama3.2:latest"
+
+        # A commercial-friendly small language model by NVIDIA optimized for roleplay, RAG QA, and function calling.
+        self.model = "nemotron-mini"
+
+        # An open weights function calling model based on Llama 3, competitive with GPT-4o function calling capabilities.
+        #self.model = "firefunction-v2"
 
         self.history = []
         self.max_tokens = 2048
@@ -40,11 +44,14 @@ class OpenAILLM(BaseLLM):
         self.token_limit = 4000 
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.api_key = "schnuffel"
         if not self.api_key:
             raise ValueError("API key for OpenAI not found in environment variables.")
      
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(
+            base_url = 'http://localhost:11434/v1',
+            api_key=self.api_key
+        )
 
 
     def dump(self):

@@ -17,6 +17,10 @@ class GoogleTTS(BaseTTS):
 
 
     def speak(self, session, text):
+        if not text:
+            return
+        
+        text = text.replace("\n", " ")
         self.stop_event.clear()
         first_part, second_part = self._split_text(text)
 
@@ -89,8 +93,14 @@ class GoogleTTS(BaseTTS):
         """Apply a fade-in effect to the audio data."""
         audio_data = np.copy(audio_data)
         num_samples = int(self.sample_rate * duration_ms / 1000)
+        
+        # Prüfen, ob audio_data genügend Samples enthält
+        if len(audio_data) < num_samples:
+            return audio_data 
+        
+        # Fade-in-Effekt anwenden
         fade = np.linspace(0, 1, num=num_samples)
-        audio_data[:num_samples] = (audio_data[:num_samples].astype(float) * fade).astype(np.int16)
+        audio_data[:num_samples] = (audio_data[:num_samples].astype(float) * fade).astype(np.int16)        
         return audio_data
 
 

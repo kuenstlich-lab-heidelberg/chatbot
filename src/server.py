@@ -81,7 +81,7 @@ async def chat(request: Request, data: ChatMessage, response: Response):
         return
      
     if text.lower() == "reset":
-        session.llm.reset()
+        session.llm.reset(session)
         return
     
     if text.lower() == "start":

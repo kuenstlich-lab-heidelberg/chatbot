@@ -20,5 +20,5 @@ class BaseLLM(abc.ABC):
 
 
     @abc.abstractmethod
-    def reset(self):
+    def reset(self, session):
         pass

@@ -101,6 +101,33 @@
             width: 25px;
         }
 
+
+         /* Three-Dot Typing Indicator */
+         .typing-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin: 8px 0;
+        }
+        
+        .typing-indicator .dot {
+            width: 8px;
+            height: 8px;
+            margin: 0 3px;
+            background-color: #606060;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator .dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator .dot:nth-child(2) { animation-delay: -0.16s; }
+        .typing-indicator .dot:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
     </style>
 </head>
 <body>
@@ -150,6 +177,8 @@
     const questionInput = document.getElementById("question");
     const micButton = document.getElementById("micButton");
 
+    let typingIndicator = null; // Track the typing indicator element
+
 
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
@@ -164,6 +193,8 @@
 
         if (userMessage) {
             addMessage(userMessage, "user");
+            showTypingIndicator();
+
             try {
                 const response = await fetch("/api/chat", {
                     method: "POST",
@@ -174,14 +205,37 @@
                 if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
                 const data = await response.json();
+                removeTypingIndicator();
                 addMessage(data.response, "bot");
             } catch (error) {
                 console.error("Error:", error);
+                removeTypingIndicator();
                 addMessage("Error connecting to server.", "bot");
             }
         }
     }
 
+    function showTypingIndicator() {
+        if (!typingIndicator) {
+            typingIndicator = document.createElement("div");
+            typingIndicator.classList.add("typing-indicator");
+
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement("div");
+                dot.classList.add("dot");
+                typingIndicator.appendChild(dot);
+            }
+            chatContainer.insertBefore(typingIndicator, chatContainer.firstChild);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+
+    function removeTypingIndicator() {
+        if (typingIndicator) {
+            chatContainer.removeChild(typingIndicator);
+            typingIndicator = null;
+        }
+    }
 
     async function startGame() {
         try {
@@ -197,6 +251,7 @@
             websocket.onopen = () => {
                 reconnectAttempts = 0;
                 toggleChatUI(true);
+                showTypingIndicator();
             };
 
             websocket.onmessage = async (event) => {
@@ -261,6 +316,7 @@
 
             const data = await response.json();
             addMessage(data.response, "bot");
+            removeTypingIndicator()
         } catch (error) {
             console.error("Error starting game:", error);
             responseTextarea.value += "Error starting game.\n";

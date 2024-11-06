@@ -9,7 +9,6 @@ class TTSEngineFactory:
 
     @classmethod
     def create(cls, audio_sink):
-        print(audio_sink)
         #return OpenAiTTS(audio_sink)
         #return CoquiTTS(audio_sink)
         #return PyTTS(audio_sink)

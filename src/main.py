@@ -1,7 +1,7 @@
 
 import sys 
 import signal
-
+import json
 from dotenv import load_dotenv
 load_dotenv() 
 
@@ -19,7 +19,8 @@ debug_ui = MotorControlerMock()
 
 conversation_dir = "/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/"
 conversation_file = "zork.yaml"
-conversation_file = "fsm.yaml"
+#conversation_file = "fsm_fun.yaml"
+#conversation_file = "fsm_techi.yaml"
 
 stop_requested = False
 
@@ -33,6 +34,15 @@ def stop():
 signal.signal(signal.SIGINT, lambda sig, frame: stop())
 
 
+def newSession():
+    return Session(
+        conversation_dir = conversation_dir,
+        state_engine=StateEngine(f"{conversation_dir}{conversation_file}"),
+        llm = LLMFactory.create(),
+        tts = TTSEngineFactory.create(PyAudioSink()),
+        stt = STTFactory.create(),
+        jukebox = LocalJukebox()
+    )
 
 if __name__ == '__main__':
 
@@ -43,11 +53,13 @@ if __name__ == '__main__':
             session.llm.dump()
             return
         if text.lower() == "reset":
-            session.llm.reset()
+            session.llm.reset(session)
             return
         
         if len(text)>0:
             response = session.llm.chat(session,text)
+            print(json.dumps(response, indent=4))
+
             action = response.get("action") 
             session.tts.stop(session)
             if action:
@@ -73,14 +85,7 @@ if __name__ == '__main__':
                 session.tts.speak(session, response["text"])
 
 
-    session = Session(
-        conversation_dir = conversation_dir,
-        state_engine=StateEngine(f"{conversation_dir}{conversation_file}"),
-        llm = LLMFactory.create(),
-        tts = TTSEngineFactory.create(PyAudioSink()),
-        stt = STTFactory.create(),
-        jukebox = LocalJukebox()
-    )
+    session = newSession()
 
     # Start the game for this new session
     #
