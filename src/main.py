@@ -1,4 +1,4 @@
-
+import os
 import sys 
 import signal
 import json
@@ -17,8 +17,9 @@ from audio.pyaudio import PyAudioSink
 
 debug_ui = MotorControlerMock()
 
-conversation_dir = "/Users/D023280/Documents/workspace/künstlich-lab/editor/src/conversations/"
-conversation_file = "zork.yaml"
+CONVERSATION_DIR  = os.getenv("CONVERSATION_DIR")
+CONVERSATION_FILE =  os.getenv("CONVERSATION_FILE")
+
 #conversation_file = "fsm_fun.yaml"
 #conversation_file = "fsm_techi.yaml"
 
@@ -36,8 +37,8 @@ signal.signal(signal.SIGINT, lambda sig, frame: stop())
 
 def newSession():
     return Session(
-        conversation_dir = conversation_dir,
-        state_engine=StateEngine(f"{conversation_dir}{conversation_file}"),
+        conversation_dir = CONVERSATION_DIR,
+        state_engine=StateEngine(f"{CONVERSATION_DIR}{CONVERSATION_DIR}"),
         llm = LLMFactory.create(),
         tts = TTSEngineFactory.create(PyAudioSink()),
         stt = STTFactory.create(),
@@ -62,11 +63,12 @@ if __name__ == '__main__':
 
             action = response.get("action") 
             session.tts.stop(session)
+            tts_text = "?"
             if action:
                 done = session.state_engine.trigger(session, action)
                 if done:
                     debug_ui.set(response["expressions"], session.state_engine.get_inventory() )
-                    session.tts.speak(session, response["text"])
+                    tts_text = response["text"]
                     session.llm.system(session.state_engine.get_action_system_prompt(action))
                 else:
                     # generate a negative answer to the last tried transition
@@ -79,10 +81,12 @@ if __name__ == '__main__':
                     """+session.state_engine.last_transition_error
                     response = session.llm.chat(session, text)
                     debug_ui.set(response["expressions"], session.state_engine.get_inventory() )
-                    session.tts.speak(session, response["text"])
+                    tts_text = response["text"]
             else:
                 debug_ui.set(response["expressions"], session.state_engine.get_inventory() )
-                session.tts.speak(session, response["text"])
+                tts_text = response["text"]
+                
+            session.tts.speak(session, tts_text)
 
 
     session = newSession()

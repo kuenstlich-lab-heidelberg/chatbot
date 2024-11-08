@@ -3,6 +3,7 @@ from openai import OpenAI
 import json
 
 import tiktoken
+import os
 
 from llm.base import BaseLLM
 
@@ -21,17 +22,10 @@ def make_serializable(obj):
 
 
 # Definition der Klasse OpenAILLM, die von BaseLLM erbt
-class OllamaLLM(BaseLLM):
+class NvidiaLLM(BaseLLM):
     def __init__(self):
         super().__init__()
-        # Facebook LLM model
-        self.model = "llama3:8b"
-
-        # A commercial-friendly small language model by NVIDIA optimized for roleplay, RAG QA, and function calling.
-        #self.model = "nemotron-mini"
-
-        # An open weights function calling model based on Llama 3, competitive with GPT-4o function calling capabilities.
-        #self.model = "firefunction-v2"
+        self.model = "meta/llama-3.1-70b-instruct"
 
         self.history = []
         self.max_tokens = 2048
@@ -42,10 +36,14 @@ class OllamaLLM(BaseLLM):
         self.top_p = 0.95
         self.token_limit = 4000 
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.api_key = "schnuffel"
+        
+        self.api_key = os.getenv("NVIDIA_API_KEY")
+        if not self.api_key:
+            raise ValueError("API key for OpenAI not found in environment variables.")
+     
         self.client = OpenAI(
-            base_url = 'http://localhost:11434/v1',
-            api_key=self.api_key
+            api_key=self.api_key,
+            base_url = "https://integrate.api.nvidia.com/v1"
         )
 
 
@@ -106,23 +104,33 @@ class OllamaLLM(BaseLLM):
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p,
-                functions=functions,
+                tools=functions,
+                  tool_choice="auto",
             )
             return self._process_response(response)
         except openai.OpenAIError as e:
             print(f"Error: {e}")
             return {"text": "I'm sorry, there was an issue processing your request.", "expressions": [], "action": None}
 
+
     def _define_action_functions(self, session):
         print(json.dumps(session.state_engine.get_possible_actions(), indent=4))
         return [
             {
-                "name": action,
-                "description": session.state_engine.get_action_description(action),
-                "parameters": {}  # No parameters
+                "type": "function",  # Add this top-level type key
+                "function": {  # Nest the actual function details here
+                    "name": action,
+                    "description": session.state_engine.get_action_description(action),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},  # Define properties if needed
+                        "required": []  # Define any required fields if necessary
+                    }
+                }
             }
             for action in session.state_engine.get_possible_actions()
         ]
+
 
     def _possible_actions_instruction(self, session):
         possible_actions = session.state_engine.get_possible_actions()
