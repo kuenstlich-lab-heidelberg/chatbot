@@ -18,4 +18,14 @@ export LDFLAGS="-L $(brew --prefix graphviz)/lib"
 
 pip install pygraphviz 
 
+
+
+docker run -p 9000:9000 \
+    -e API_KEY=my_api_key_value \
+    -e DATABASE_URL=my_database_url \
+    -e GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json \
+    -v /home/user/gcloud/credentials.json:/app/credentials.json \
+    my-fastapi-app
+
 ```
+

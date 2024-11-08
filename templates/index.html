@@ -133,7 +133,7 @@
 <body>
 
 <h2>Chat Interface</h2>
-
+<p>Base URI is: {{ BASE_URI }}</p>
 <!-- Chat container where messages are displayed -->
 <div class="chat-container" id="chatContainer"></div>
 
@@ -196,9 +196,10 @@
             showTypingIndicator();
 
             try {
-                const response = await fetch("/api/chat", {
+                const response = await fetch("{{ BASE_URI }}/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
+                    credentials: "include",
                     body: JSON.stringify({ text: userMessage })
                 });
 
@@ -240,12 +241,14 @@
     async function startGame() {
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const response = await fetch("/websocket/connect");
+            const response = await fetch("{{ BASE_URI }}/websocket/connect",{
+                credentials: "include"  // Ensure cookies are included
+            });
             const data = await response.json();
             token = data.token;
 
             const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
-            const wsUrl = `${wsProtocol}${window.location.host}/websocket/${token}`;
+            const wsUrl = `${wsProtocol}${window.location.host}{{ BASE_URI }}/websocket/${token}`;
             websocket = new WebSocket(wsUrl);
 
             websocket.onopen = () => {
@@ -260,7 +263,7 @@
                         const message = JSON.parse(event.data);
                         console.log(message)
                         if (message.function === "sound.play_sound") {
-                            const soundUrl = `${window.location.protocol}//${window.location.host}/api/audio/${message.file_name}`;
+                            const soundUrl = `${window.location.protocol}//${window.location.host}{{ BASE_URI }}/api/audio/${message.file_name}`;
                             const audio = new Audio(soundUrl);
                             audio.loop = message.loop;
                             audioPlayers[message.file_name] = audio;
@@ -306,11 +309,12 @@
 
         try {
             inputArea.focus();
-            const response = await fetch("/api/chat", {
+            const response = await fetch("{{ BASE_URI }}/api/chat", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
+                credentials: "include",
                 body: JSON.stringify({ text: "start" })
             });
 

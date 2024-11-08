@@ -41,6 +41,8 @@ class WebSocketManager:
     @staticmethod
     def send_message(token: str, message: str) -> None:
         """Adds a text message to the queue to be processed asynchronously."""
+        print("SEND SEND SEND SEND")
+        print(token, message)
         if token in WebSocketManager.message_queues:
             WebSocketManager.message_queues[token].put(message)  # Thread-safe enqueue for text
 
@@ -66,6 +68,7 @@ class WebSocketManager:
             while True:
                 try:
                     message = message_queue.get_nowait()  # Non-blocking get for text messages
+                    print("FOUND MESSAGE.......")
                     if websocket.application_state == WebSocketState.CONNECTED:
                         await websocket.send_text(message)
                 except Empty:
