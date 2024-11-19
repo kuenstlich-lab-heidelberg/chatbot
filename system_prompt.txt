@@ -1,0 +1,7 @@
+Can you simulate a short Speech of Plato where you generate 
+the text and the gestures of Plato. Indicate the gestures 
+movements via the following keywords: <hands_up>, <point_left>,
+<point_right>, <show_left>, <show_right>, <neutral_stay> 
+
+Here an example: 
+welcome my fellow students <point_right> today we will learn  <neutral_stay> …

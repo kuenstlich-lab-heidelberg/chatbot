@@ -55,71 +55,20 @@ class GeminiLLM(BaseLLM):
             return {"text": "No input provided.", "expressions": [], "action": None}
 
         user_input = user_input.replace(f'\n', '')
-        tools = [
-            genai.protos.Tool(
-                function_declarations=[
-                    genai.protos.FunctionDeclaration(
-                        name=action,
-                        description=session.state_engine.get_action_description(action),
-                        parameters=None
-                    )
-                ]
-            )
-            for action in session.state_engine.get_possible_actions()
-        ]
-        print(json.dumps(session.state_engine.get_possible_actions(), indent=4))
-
-        possible_actions_instruction = re.sub(r"\s+", " ", f"""
-            Im Hintergrund wähle ich je nach Gesprächskontext oder auf expliziten Wunsch des Benutzers die 
-            passende Funktion aus. Dabei achte ich darauf, dass das Handlungsverb der Aktion semantisch 
-            zur Anweisung passt, um Verwechslungen wie „öffne...“ statt „untersuche...“. Verben die semantisch identisch
-            sind wie gehen, laufen, rennen oder aufheben, nehmen,...können als identisch und gleichwertig angesehen werden.
-            Jede gewählte Aktion soll im Sinne der Absicht des Nutzers ausgeführt werden.
-
-            Wenn keine dieser Funktionen dem Befehl des Nutzers entspricht, fahre ich ohne technische 
-            Hinweise oder Rückmeldung ganz normal im Gesprächsverlauf fort, ohne eine Aktion auszuführen.
-            Achte drauf dem Benutzer IMMER einen text als zu liefern.
-        """)
+ 
         self._trim_history_to_fit(user_input)
   
         # Erster Modellaufruf mit "function_calling_config" auf "ANY" um zu versuchen "action" und "text" zu bekommen
         #
-        result = self._get_response_with_config(session, 
-                                                user_input, 
-                                                tools, 
-                                                possible_actions_instruction, 
-                                                function_calling_config="AUTO")
-        action = result["action"]
+        result = self._get_response_with_config(session,  user_input)
 
-        # Falls Gemini nur "action" geliefert hat, dann starten wir einen zweiten Aufruf um uns nur eine "text" Antwort abzuholen.
-        # Kann manchmal passieren. AI = fuzzy
-        #
-        if result["text"] is None:
-            print("No text response; retrying with function_calling_config set to 'NONE'.")
-            if action in session.state_engine.get_possible_actions():
-                self.system(re.sub(r"\s+", " ",f""" (Hinweis: Antworte so, als ob die Aktion '{result["action"]}' erfolgreich ausgeführt wurde.
-                    Achte bitte darauf, dass du so Antwortest, als ob die Aktion erfolgreich war und du 
-                    diese ausgeführt hast. Egal welche anderen Annahmen du triffst. Diese information NIEMALS 
-                    dem Benutzer zeigen oder zurückliefern) 
-                    """))
-            else:
-                result["action"] = None
-
-            second_result = self._get_response_with_config(session, user_input, tools, possible_actions_instruction, function_calling_config="NONE")
-
-            # Merging der Antworten
-            result["text"] = second_result["text"] if result["text"] is None else result["text"]
-
-            # remove the fucking Gemini prompt append....
-            text = result["text"]
-            result["text"] = text[:text.find("(Hinweis:")] if "(Hinweis:" in text else text
-
-            if result["action"] is None and second_result["action"] is not None:
-                result["action"] = second_result["action"]
+        # remove the fucking Gemini prompt append....
+        text = result["text"]
+        text = text[:text.find("(Hinweis:")] if "(Hinweis:" in text else text
 
         # Append user input to history
         self._add_to_history(role='user', message=user_input)
-        self._add_to_history(role='model', message=result["text"] )
+        self._add_to_history(role='model', message=text )
 
         print(json.dumps(result, indent=4))
         return result
@@ -144,7 +93,7 @@ class GeminiLLM(BaseLLM):
             self.history.append({"role": role, "parts": [message]})
 
 
-    def _get_response_with_config(self, session, user_input, tools, instruction, function_calling_config):
+    def _get_response_with_config(self, session, user_input):
         max_retries = 2
         attempt = 0
         
@@ -153,22 +102,17 @@ class GeminiLLM(BaseLLM):
                 model = genai.GenerativeModel(
                     model_name=self.model_name,
                     generation_config=self.generation_config,
-                    system_instruction=f"{session.state_engine.get_global_system_prompt()}. {instruction}",
-                    tools=tools,
+                    system_instruction=session.system_prompt,
+                    
                     safety_settings={
                         'HATE': 'BLOCK_NONE',
                         'HARASSMENT': 'BLOCK_NONE',
                         'SEXUAL': 'BLOCK_NONE',
                         'DANGEROUS': 'BLOCK_NONE'
-                    },
-                    tool_config={'function_calling_config': function_calling_config},
+                    }
                 )
 
-                chat_session = model.start_chat(
-                    history=self.history,
-                    enable_automatic_function_calling=False
-                )
-
+                chat_session = model.start_chat( history=self.history)
                 response = chat_session.send_message(user_input)
                 result = {"text": None, "expressions": [], "action": None}
 
@@ -176,8 +120,6 @@ class GeminiLLM(BaseLLM):
                 for part in response.parts:
                     if part.text and not result["text"]:
                         result["text"] = part.text
-                    if part.function_call and not result["action"]:
-                        result["action"] = part.function_call.name
 
                 return result  # Exit the loop and function if successful
 

@@ -1,0 +1,156 @@
+
+/* Basic Layout */
+
+html{
+    width:100%;
+    height:100%;    
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+    background-color: #f0f0f5;
+    width:100%;
+    height:100%;
+}
+
+/* Chat Container */
+.chat-container {
+    width: 80%;
+    max-width: 600px;
+    height: 60vh;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column-reverse; /* New messages at bottom */
+    overflow-y: auto;
+    background-color: #ffffff;
+}
+
+/* Message Bubbles */
+.message {
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 15px;
+    margin: 8px 0;
+    max-width: 70%;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+}
+
+/* User Message Bubble */
+.message.user {
+    background-color: #dcf8c6;
+    align-self: flex-end;
+    color: #303030;
+}
+
+/* Bot Message Bubble */
+.message.bot {
+    background-color: #f1f0f0;
+    align-self: flex-start;
+    color: #606060;
+}
+
+#intro {
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center; 
+    align-items: center;
+}
+
+#conversation {
+    display: none;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+}
+
+#dialog {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+}
+
+/* Input Area */
+.input-area {
+    width: 80%;
+    max-width: 600px;
+    display: flex;
+    margin-top: 10px;
+}
+
+/* Text Input */
+input[type="text"] {
+    flex: 1;
+    padding: 10px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    font-size: 0.9rem;
+}
+
+/* Buttons */
+button, #micButton {
+    padding: 0 15px;
+    margin-left: 8px;
+    border-radius: 20px;
+    border: none;
+    background-color: #34b7f1;
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+button:active, #micButton:active {
+    background-color: #1289c8;
+}
+
+/* Mic Button Active Style */
+#micButton.active {
+    background-color: #ff4d4d;
+}
+
+/* Mic Button */
+#micButton {
+    background-color: transparent;
+    border: none;
+    font-size: 1.9rem;
+}
+
+#micIcon {
+    width: 25px;
+}
+
+/* Three-Dot Typing Indicator */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 8px 0;
+}
+
+.typing-indicator .dot {
+    width: 8px;
+    height: 8px;
+    margin: 0 3px;
+    background-color: #606060;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator .dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator .dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-indicator .dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}

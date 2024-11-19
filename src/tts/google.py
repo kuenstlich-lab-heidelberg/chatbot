@@ -4,6 +4,7 @@ import threading
 import google.cloud.texttospeech as tts
 import re
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+from typing import Callable
 
 from tts.base import BaseTTS
 
@@ -16,7 +17,7 @@ class GoogleTTS(BaseTTS):
         self.client = tts.TextToSpeechClient()
 
 
-    def speak(self, session, text):
+    def speak(self, session, text, on_start: Callable = lambda session: None):
         if not text:
             return
         
@@ -33,6 +34,7 @@ class GoogleTTS(BaseTTS):
 
             def play_audio_google():
                 try:
+                    self.run_callback(on_start, session)
                     for i in range(0, len(audio_data_first), 1024):
                         if self.stop_event.is_set():
                             break

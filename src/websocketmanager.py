@@ -1,4 +1,3 @@
-import asyncio
 from fastapi import WebSocket
 from typing import Dict
 from queue import Queue, Empty
@@ -38,13 +37,13 @@ class WebSocketManager:
             del WebSocketManager.message_queues[token]
             del WebSocketManager.binary_message_queues[token]
 
+
     @staticmethod
     def send_message(token: str, message: str) -> None:
         """Adds a text message to the queue to be processed asynchronously."""
-        print("SEND SEND SEND SEND")
-        print(token, message)
         if token in WebSocketManager.message_queues:
             WebSocketManager.message_queues[token].put(message)  # Thread-safe enqueue for text
+
 
     @staticmethod
     def send_bytes(token: str, data: bytes) -> None:
@@ -68,7 +67,6 @@ class WebSocketManager:
             while True:
                 try:
                     message = message_queue.get_nowait()  # Non-blocking get for text messages
-                    print("FOUND MESSAGE.......")
                     if websocket.application_state == WebSocketState.CONNECTED:
                         await websocket.send_text(message)
                 except Empty:

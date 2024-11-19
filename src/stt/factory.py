@@ -7,5 +7,5 @@ class STTFactory:
     @classmethod
     def create(cls):
         #return  WhisperLocal()
-        #return WhisperOpenAi()
-        return CLIText()
+        return WhisperOpenAi()
+        #return CLIText()

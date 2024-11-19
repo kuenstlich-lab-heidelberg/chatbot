@@ -26,9 +26,9 @@ class OpenAILLM(BaseLLM):
     def __init__(self):
         super().__init__()
         #self.model = "gpt-4"
-        #self.model = "gpt-3.5-turbo"
+        self.model = "gpt-3.5-turbo"
         #self.model = "gpt-4o-mini"
-        self.model = "gpt-4o"
+        #self.model = "gpt-4o"
 
         self.history = []
         self.max_tokens = 2048
@@ -81,8 +81,6 @@ class OpenAILLM(BaseLLM):
         self._trim_history()
 
         response = self._call_openai_model(session)
-        if (response["text"] is None or response["text"].strip() == "") and response["action"]:
-            response = self._retry_for_text(session, response)
         response["text"] =  response["text"].replace("Was möchtest du als nächstes tun?", "")
 
         self._add_to_history("assistant", response["text"])
@@ -91,12 +89,10 @@ class OpenAILLM(BaseLLM):
 
     def _call_openai_model(self, session):
         combined_history = [
-            {"role": "system", "content": session.state_engine.get_global_system_prompt()},
-            {"role": "system", "content": self._possible_actions_instruction(session)}
+            {"role": "system", "content": session.system_prompt},
         ] + self.history
 
-        functions = self._define_action_functions(session)
-
+        text ="?"
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -104,61 +100,16 @@ class OpenAILLM(BaseLLM):
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 top_p=self.top_p,
-                functions=functions,
             )
-            return self._process_response(response)
+
+            if response and response.choices:
+                choice = response.choices[0].message
+                text = choice.content
+
         except openai.OpenAIError as e:
             print(f"Error: {e}")
             return {"text": "I'm sorry, there was an issue processing your request.", "expressions": [], "action": None}
-
-    def _define_action_functions(self, session):
-        print(json.dumps(session.state_engine.get_possible_actions(), indent=4))
-        return [
-            {
-                "name": action,
-                "description": session.state_engine.get_action_description(action),
-                "parameters": {}  # No parameters
-            }
-            for action in session.state_engine.get_possible_actions()
-        ]
-
-    def _possible_actions_instruction(self, session):
-        possible_actions = session.state_engine.get_possible_actions()
-        possible_actions_str = ', '.join(f'"{action}"' for action in possible_actions)
-        return f"Available actions: [{possible_actions_str}]"
-
-
-    def _process_response(self, response):
-        text, action = "", None
-        if response and response.choices:
-            choice = response.choices[0].message
-            if choice.function_call:
-                action = choice.function_call.name
-            elif choice.content:
-                text = choice.content
-        return {"text": text, "expressions":[], "action": action}
-
-
-    def _retry_for_text(self, session, initial_response):
-        action = initial_response["action"]
-        if action in session.state_engine.get_possible_actions():
-            # Instruct the model to respond as if the action was successful
-            self.system(f"""
-                Respond as if the action '{action}' was executed successfully. 
-                Do not reveal any internal details to the user.
-            """)
-        else:
-            # If the action is not valid, we clear it to avoid returning an incorrect action
-            action = None
-
-        # Retry without requesting a function call, focusing on obtaining a text response
-        second_response = self._call_openai_model(session)
-
-        # Preserve the original action and update only the text
-        initial_response["text"] = second_response["text"]
-        initial_response["action"] = action  # Ensure the action from the first response is kept
-
-        return initial_response
+        return {"text": text}
 
 
     def _trim_history(self):

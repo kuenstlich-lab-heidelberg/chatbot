@@ -3,6 +3,7 @@ from tts.base import BaseTTS
 import threading
 import time
 from openai import OpenAI
+from typing import Callable
 
 class OpenAiTTS(BaseTTS):
     def __init__(self, audio_sink):
@@ -14,9 +15,9 @@ class OpenAiTTS(BaseTTS):
         self.max_retries = 3
 
 
-    def speak(self, session, text):
+    def speak(self, session, text, on_start: Callable = lambda session: None):
         # Ensure any ongoing playback is stopped before starting a new one
-        self.stop()
+        self.stop(session)
 
         # Clear the stop event
         self.stop_event.clear()
@@ -35,6 +36,7 @@ class OpenAiTTS(BaseTTS):
                             voice="onyx",
                             model="tts-1"
                         ) as response:
+                            self.run_callback(on_start, session)
                             for chunk in response.iter_bytes(chunk_size=8192):
                                 if self.stop_event.is_set():
                                     break
